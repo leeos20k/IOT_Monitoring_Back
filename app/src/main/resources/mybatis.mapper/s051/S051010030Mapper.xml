@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S051010030">
+
+    <select id="GetUserListVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        SELECT	u010.user_id,
+                u010.user_nm,
+                u010.admin_flag,
+                u010.hp_no,
+                sum(case when u020.master_id is null then 0
+                        else 1
+                    end	) cnt
+        FROM 	tb_s050.tb_s050_user010 u010
+                left outer join tb_s050.tb_s050_user020 u020
+                on	u010.user_id = u020.user_id
+        where	u010.org_id = #{orgId}
+        and		u010.app_tp = '01'
+        and		u010.user_nm like concat('%', ifnull(#{userNm}, ''), '%')
+        and		ifnull(u010.admin_flag, 'N') = ifnull(#{adminFlag}, ifnull(u010.admin_flag, 'N'))
+        and 	u010.data_end_status is null
+        group by    u010.user_id,
+                    u010.user_nm,
+                    u010.admin_flag,
+                    u010.hp_no
+    </select>
+
+    <update id="UpdateAdmin" parameterType="java.util.Map">
+        UPDATE tb_s050.tb_s050_user010
+        SET	    LAST_OBJECT_ID      = #{loginId},		-- 화면에서 로그인한 hidden user_id
+                UPDATE_TIMESTAMP    = sysdate(),
+                UPDATE_PROGRAM_ID   = 's051010030',
+                ADMIN_FLAG          = #{adminFlag}				-- 관리자 지정 : Y / 관리자 해제 : N
+        WHERE   USER_ID             = #{userId}			-- 화면에서 로그인한 hidden user_id
+        and	    app_tp = '01'
+    </update>
+
+    <update id="EndUser" parameterType="java.util.Map">
+        UPDATE tb_s050.tb_s050_user010
+        SET	    LAST_OBJECT_ID = #{loginId},					-- 화면에서 로그인한 hidden user_id
+                UPDATE_TIMESTAMP = sysdate(),
+                UPDATE_PROGRAM_ID = 's051010030',
+                DATA_END_STATUS = '*',
+                DATA_END_OBJECT_ID = #{loginId},				-- 화면에서 로그인한 hidden user_id
+                DATA_END_PROGRAM_ID = 's051010030',
+                DATA_END_TIMESTAMP = sysdate()
+        WHERE   app_tp = '01'
+        and     USER_ID IN (
+                    <foreach collection="list" item="userId" separator=",">
+                        #{userId}
+                    </foreach>
+                )
+    </update>
+
+    <delete id="DeleteMaster" parameterType="java.util.Map">
+        DELETE FROM tb_s050.tb_s050_user020
+        WHERE   USER_ID IN (
+                    <foreach collection="list" item="userId" separator=",">
+                        #{userId}
+                    </foreach>
+                )
+    </delete>
+
+</mapper>

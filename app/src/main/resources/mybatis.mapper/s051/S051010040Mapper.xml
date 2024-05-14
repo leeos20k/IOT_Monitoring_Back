@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S051010040">
+
+    <select id="GetUserVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        select	m010.master_id,			-- hidden 으로 사용할 master_id
+                m010.master_nm,			-- 출력할 maste 명
+                case when u020.user_id is null then 3
+                when u020.user_id is not null and u020.user_id = ifnull(null, 0) then 1
+                when u020.user_id is not null and u020.user_id != ifnull(null, 0) then 2
+                end 	used_master_id		-- 1 : 담당자에게 지정된 Master / 2 : 다른 담당자에게 지정된 Master (선택불가 처리) / 3: 담당자가 지정되지 않는 Master (추가 선택 가능)
+        from	tb_s050.tb_s050_master010	m010
+                left outer join	tb_s050.tb_s050_user020	u020
+                on	m010.master_id	= u020.master_id
+                and	m010.org_id = u020.org_id
+                and	u020.user_id = null
+        where	m010.org_id = #{orgId}
+        and		m010.app_tp = '01'
+    </select>
+
+    <select id="GetUserDetailVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        select	(select	user_nm
+                from	tb_s050.tb_s050_user010	u010
+                where	user_id = #{userId} )  user_nm,			-- 사용자 성명
+                (select	hp_no
+                from	tb_s050.tb_s050_user010	u010
+                where	user_id = #{userId} )  hp_no,			-- 사용자 번호
+                m010.master_id,			-- hidden 으로 사용할 master_id
+                m010.master_nm,			-- 출력할 maste 명
+                case    when u020.user_id is null then 3
+                        when u020.user_id is not null and u020.user_id = #{userId} then 1
+                        when u020.user_id is not null and u020.user_id != #{userId} then 2
+                end 	used_master_id		-- 1 : 담당자에게 지정된 Master / 2 : 다른 담당자에게 지정된 Master (선택불가 처리) / 3: 담당자가 지정되지 않는 Master (추가 선택 가능)
+        from	tb_s050.tb_s050_master010	m010
+                left outer join	tb_s050.tb_s050_user020	u020
+                on	m010.master_id	= u020.master_id
+                and	m010.org_id = u020.org_id
+                and	u020.user_id = #{userId}
+        where	m010.org_id = #{orgId}
+        and		m010.app_tp = '01'
+    </select>
+
+    <insert id="InsertUser" parameterType="java.util.Map">
+        INSERT INTO tb_s050.tb_s050_user010
+                (USER_ID,
+                CREATE_OBJECT_ID,
+                CREATE_TIMESTAMP,
+                CREATE_PROGRAM_ID,
+                LAST_OBJECT_ID,
+                UPDATE_TIMESTAMP,
+                UPDATE_PROGRAM_ID,
+                ORG_ID,
+                USER_NM,
+                HP_NO,
+                APP_TP)
+        VALUES
+                (nextval(tb_s050.sq_s050_user010),
+                #{loginId},				-- 화면에서 로그인한 hidden user_id
+                sysdate(),
+                's051010040',
+                #{loginId},				-- 화면에서 로그인한 hidden user_id
+                sysdate(),
+                's051010040',
+                #{orgId},				-- 화면에서 로그인한 hidden org_id
+                #{userNm},				-- 화면에서 입력한 성명
+                #{hpNo},
+                '01')			-- 화면에서 입력한 HP_번호 (010-0000-0000 패튼으로 입력)
+    </insert>
+
+    <insert id="InsertMaster" parameterType="java.util.Map">
+        INSERT INTO tb_s050.tb_s050_user020
+                (USER_ID,
+                MASTER_ID,
+                CREATE_OBJECT_ID,
+                CREATE_TIMESTAMP,
+                CREATE_PROGRAM_ID,
+                LAST_OBJECT_ID,
+                UPDATE_TIMESTAMP,
+                UPDATE_PROGRAM_ID,
+                ORG_ID)
+        VALUES
+                (
+                <choose>
+                    <when test='userId != null and userId != ""'>
+                        #{userId},      -- 신규 등록 : lastval(tb_s050.sq_s050_user010) / 수정등록시 : 선택된 user_id
+                    </when>
+                    <otherwise>
+                        lastval(tb_s050.sq_s050_user010),
+                    </otherwise>
+                </choose>
+                #{masterId},						-- 화면에서 선택한 MASTER_ID
+                #{loginId},						    -- 화면에서 로그인한 hidden user_id
+                sysdate(),
+                's051010040',
+                #{loginId},						    -- 화면에서 로그인한 hidden user_id
+                sysdate(),
+                's051010040',
+                #{orgId})					        -- 화면에서 로그인한 hidden org_id
+    </insert>
+
+    <update id="UpdateUser" parameterType="java.util.Map">
+        UPDATE tb_s050.tb_s050_user010
+        SET	    LAST_OBJECT_ID      = #{loginId},		    -- 화면에서 로그인한 hidden user_id
+                UPDATE_TIMESTAMP    = sysdate(),
+                UPDATE_PROGRAM_ID   = 's051010040',
+                USER_NM             = #{userNm},			-- 화면에서 입력한 성명
+                HP_NO               = #{hpNo}				-- 화면에서 입력한 HP_NO
+        WHERE   USER_ID             = #{userId}    			-- 화면에서 선택한 user_id
+        and	    app_tp = '01'
+    </update>
+    
+    <delete id="DeleteUserMater" parameterType="java.util.Map">
+        DELETE FROM tb_s050.tb_s050_user020
+        WHERE user_id = #{userId}			-- 화면에서 선택한 user_id
+    </delete>
+
+</mapper>

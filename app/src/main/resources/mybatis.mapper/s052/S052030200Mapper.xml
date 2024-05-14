@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S052030200">
+    <select id="GetRegFixMgnVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        <!-- 정기점검 관리 조회 VO -->
+        with	slave_seq_info as (
+            select	m010.master_nm,				-- 설비그룹
+                    s010.slave_nm,				-- 설비Item
+                    s020.slave_detail_nm,		-- Machine 명
+                    fix010.install_date,		-- 설치일자
+                    fix010.slave_op_tm,			-- 가동시간
+                    fix010.slave_base_day,		-- 적용일자
+                    fix010.slave_base_tm,		-- 시간(Hr)
+                    date_add(fix010.install_date, interval (fix010.slave_op_tm/fix010.slave_base_tm) day) fix_plan_dt,	-- 점검예정일
+                    fix010.slave_op_real_tm,	-- 실가동시간
+                    fix010.fixed_date,			-- 점검일자
+                    fix010.comments,			-- 비고
+                    m010.master_id,				-- hidden의 master_id
+                    s010.slave_id,				-- hidden의 slave_id
+                    s010.slave_tp,				-- hidden의 slave_구분
+                    s020.seq,					-- hidden의 순번
+                    fix010.fix_id				-- hidden의 fix_id
+            from	tb_s050.tb_s050_master010 m010
+            inner join tb_s050.tb_s050_master020 m020
+            on m010.master_id = m020.master_id
+            inner join tb_s050.tb_s050_slave010 s010
+            on	m020.slave_id = s010.slave_id
+            inner join tb_s050.tb_s050_slave020 s020
+            on	s010.slave_id = s020.slave_id
+            left outer join tb_s050.tb_s050_fix010 fix010
+            on s020.slave_id = fix010.slave_id
+            and s020.seq = fix010.seq
+            and	fix010.FIXED_DATE is null
+            where	s010.org_id = 1
+            and		s010.app_tp = '02'
+            and		s010.slave_id  in ( 14001, 14004, 16003) -- 하드코딩
+        ),
+        real_op_tm as (
+            select	agg020.slave_id,
+                    agg020.seq,
+                    floor(sum(agg020.SLAVE_OP_REAL_MIN)/60)  as SLAVE_OP_REAL_tm,
+                    mod(sum(agg020.SLAVE_OP_REAL_MIN), 60) as SLAVE_OP_REAL_min,
+                    ssi.install_date
+            from	slave_seq_info	ssi,
+            tb_s050.tb_s050_aggre020  agg020
+            where	ssi.slave_id = agg020.slave_id
+            and		ssi.seq = agg020.seq
+            and		agg020.EVENT_AGGRE_YYMMDDHH <![CDATA[>=]]> ssi.install_date
+            group by agg020.slave_id,
+            agg020.seq,
+            ssi.install_date
+        )
+        select	ssi.master_nm,				-- 설비그룹
+                ssi.slave_nm,				-- 설비Item
+                ssi.slave_detail_nm,		-- Machine 명
+                ssi.install_date,		-- 설치일자
+                ssi.slave_op_tm,			-- 가동시간
+                ssi.slave_base_day,		-- 적용일자
+                ssi.slave_base_tm,		-- 시간(Hr)
+                ssi.fix_plan_dt,		-- 점검예정일
+                concat(rot.SLAVE_OP_REAL_tm, '시간 ',rot.SLAVE_OP_REAL_min, '분') as slave_op_real_tm,-- 실가동시간
+                ssi.fixed_date,			-- 점검일자
+                ssi.comments,			-- 비고
+                ssi.master_id,			-- hidden 사용할 master_id
+                ssi.slave_id,			-- hidden 사용할 slave_id
+                ssi.slave_tp,			-- hidden 사용할 slave_구분
+                ssi.seq,				-- hidden 사용할 slave 순번
+                ssi.fix_id				-- hidden 사용할 fix_id
+        from	slave_seq_info  ssi,
+        real_op_tm	rot
+        where	ssi.slave_id = rot.slave_id
+        and		ssi.seq = rot.seq
+    </select>
+
+    <update id="UpdateFix010" parameterType="java.util.Map">
+        <!-- ① tb_s050_fix010 정기점검 내용 update 처리 -->
+        UPDATE tb_s050.tb_s050_fix010
+        SET	LAST_OBJECT_ID = #{loginId},			-- 로그인 id
+            UPDATE_TIMESTAMP = sysdate(),
+            UPDATE_PROGRAM_ID = 'S052030200',
+            SLAVE_OP_REAL_TM = #{slaveOpRealTm},	-- 화면의 실가동시간
+            FIXED_DATE = #{fixedDate},		-- 화면의 점검일자
+            COMMENTS = #{comments}			-- 화면의 비고
+        WHERE FIX_ID = #{fixId}			-- 선택한 FIX_ID
+    </update>
+
+    <update id="UpdateMachine" parameterType="java.util.Map">
+        <!-- ② tb_s050_slave020 설비 Machine 설치내용 삭제 -->
+        UPDATE tb_s050.tb_s050_slave020
+        SET	LAST_OBJECT_ID = #{loginId},			-- 로그인 id
+            UPDATE_TIMESTAMP = sysdate(),
+            UPDATE_PROGRAM_ID = 'S052030200',
+            INSTALL_DATE = null,	-- 설치일자
+            SLAVE_OP_TM = null,		-- 가동시간
+            SLAVE_BASE_DAY = null,	-- 적용일자
+            SLAVE_BASE_TM = null	-- 기준시간
+        WHERE	slave_id = #{slaveId}
+        and		seq = #{seq}
+    </update>
+</mapper>

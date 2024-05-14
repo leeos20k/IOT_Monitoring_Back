@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S051020010">
+
+    <select id="GetLoginInfoVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        select	org010.org_id,				-- org_id
+                org010.org_nm,				-- 단체명
+                ORG010.CEO_NM,
+                U010.user_id,				-- user_id
+                U010.user_nm, 				-- 사용자명
+                U010.admin_flag,			-- 관리자 여부
+                U010.HP_NO,					-- 사용자 HP_NO
+                U010.PUSH_TOKEN,
+                U010.SYSTEM_FLAG,
+                COUNT(ORG010.ORG_ID) OVER(PARTITION BY HP_NO) CNT
+        from	TB_S050.TB_S050_USER010  U010
+                INNER JOIN TB_S050.TB_S050_ORG010 as ORG010
+                ON	ORG010.ORG_ID = U010.ORG_ID
+                INNER JOIN TB_S050.TB_S050_ORG020 as ORG020
+                ON	ORG010.ORG_ID = ORG020.ORG_ID
+                AND	ORG020.APP_TP = U010.APP_TP
+        WHERE	U010.APP_TP = #{appTp}		-- 앱구분값 (01 - Pull Cord S/W )
+        AND		U010.HP_NO = #{hpNo}  		-- 화면의 HP_NO
+        order by  ORG010.ORG_ID
+    </select>
+
+    <update id="updateToken" parameterType="java.util.Map">
+        UPDATE  tb_s050.tb_s050_user010
+        SET     PUSH_TOKEN = #{pushToken}
+        WHERE   user_id = #{userId}
+        and     app_tp = '01'
+    </update>
+
+</mapper>

@@ -1,0 +1,108 @@
+buildscript {
+	ext {
+		springBootVersion = '2.4.1'
+		springCloudVersion = "2020.0.1"
+	}
+	repositories {
+		mavenCentral()
+		jcenter()
+		maven { url 'https://repo.spring.io/plugins-release' }
+	}
+
+	dependencies {
+		classpath "org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}"
+		classpath "io.spring.gradle:dependency-management-plugin:1.0.11.RELEASE"
+
+	}
+}
+
+subprojects {
+	group 'com.swontech.s05'
+	version '1.0-SNAPSHOT'
+
+	apply plugin: 'java'
+	apply plugin: 'eclipse'
+	apply plugin: 'org.springframework.boot'
+	apply plugin: 'io.spring.dependency-management'
+
+	repositories {
+		mavenCentral()
+		maven { url "https://repo.spring.io/libs-release" }
+	}
+
+	dependencyManagement {
+		imports {
+			mavenBom "org.springframework.boot:spring-boot-dependencies:${springBootVersion}"
+			mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+		}
+	}
+
+	compileJava {
+		sourceCompatibility=11
+		targetCompatibility=11
+	}
+	compileTestJava {
+		sourceCompatibility=11
+		targetCompatibility=11
+	}
+
+	bootJar {
+		mainClassName('com.swontech.s05.Application')
+		archiveBaseName = 's05-back'
+		archiveFileName = 's05-back.jar'
+		archiveVersion = '0.0.1'
+	}
+
+	dependencies {
+		implementation 'org.springframework.boot:spring-boot-starter-web'
+		implementation 'org.springframework.boot:spring-boot-starter-actuator'
+		implementation 'org.springframework.boot:spring-boot-starter-aop'
+		implementation 'org.springframework.boot:spring-boot-starter-security'
+
+		implementation 'org.springframework.cloud:spring-cloud-starter-config'
+		implementation 'org.springframework.cloud:spring-cloud-starter-bootstrap'
+
+		implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:2.1.4'
+
+		implementation 'org.springframework.boot:spring-boot-starter-data-jdbc'
+		implementation 'org.bgee.log4jdbc-log4j2:log4jdbc-log4j2-jdbc4:1.16'
+		implementation 'com.zaxxer:HikariCP:3.2.0'
+		runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
+
+		implementation 'io.jsonwebtoken:jjwt-impl:0.11.2', 'io.jsonwebtoken:jjwt-jackson:0.11.2'
+
+		implementation 'org.projectlombok:lombok'
+		annotationProcessor 'org.projectlombok:lombok'
+
+		implementation group: 'com.google.guava', name: 'guava', version: '31.1-jre'
+
+		// swagger3.0
+		implementation "io.springfox:springfox-boot-starter:3.0.0"
+
+		implementation group: 'com.google.guava', name: 'guava', version: '31.1-jre'
+
+		//websocket
+		implementation 'org.springframework.boot:spring-boot-starter-websocket'
+
+		// firebase
+		implementation 'com.google.firebase:firebase-admin:9.1.1'
+
+		// Modbus
+		implementation files('libs/EasyModbusJava.jar')
+
+		// CSV
+		implementation 'org.apache.commons:commons-csv:1.8'
+		implementation 'com.opencsv:opencsv:5.5.2'
+	}
+}
+
+project(":app") {
+	dependencies {
+		implementation project(":service")
+	}
+}
+
+project(":service") {
+	bootJar.enabled(false)
+	jar.enabled(true)
+}

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S051030030">
+    <select id="selectGetMasterDetailHead" parameterType="java.util.Map" resultType="CamelHashMap">
+        -- head 의 구역, master 명 조회
+        SELECT 	M010.MASTER_ID,					-- HIDDEN으로 사용할 MASTER_ID
+                M010.MASTER_NM,					-- MASTER명
+                A010.AREA_NM					-- 담당구역
+        FROM 	TB_S050.TB_S050_MASTER010  M010,
+                TB_S050.TB_S050_AREA010  A010
+        WHERE 	M010.ORG_ID = #{orgId}
+        AND		M010.ORG_ID = A010.ORG_ID
+        AND		M010.MASTER_ID = A010.MASTER_ID
+        AND		M010.MASTER_ID = #{masterId}
+        AND		M010.APP_TP = '01'
+        AND		M010.APP_TP = A010.APP_TP
+    </select>
+
+
+    <select id="selectGetMasterDetailUser" parameterType="java.util.Map" resultType="CamelHashMap">
+        -- 담당자 조회
+        SELECT 	M010.MASTER_ID,					-- HIDDEN으로 사용할 MASTER_ID
+                U010.USER_NM,					-- 담당자명
+                U010.HP_NO						-- 담당자 HP번호
+        FROM 	TB_S050.TB_S050_MASTER010  M010,
+                TB_S050.TB_S050_USER020  U020,
+                TB_S050.TB_S050_USER010  U010
+        WHERE 	M010.ORG_ID = #{orgId}
+        AND		M010.MASTER_ID = #{masterId}
+        AND		M010.MASTER_ID = U020.MASTER_ID
+        AND		M010.ORG_ID = U010.ORG_ID
+        AND		U020.USER_ID = U010.USER_ID
+        AND		M010.APP_TP = '01'
+        AND		M010.APP_TP = U010.APP_TP
+    </select>
+
+    <select id="selectGetMasterDetailSW" parameterType="java.util.Map" resultType="CamelHashMap">
+        -- 스위치 값 조회
+        select	M010.MASTER_ID,					-- HIDDEN으로 사용할 MASTER_ID
+                S010.SW_NO,						-- 스위치번호
+                S010.SW_VALUE,					-- 스위치 값
+                S010.EVENT_TM					-- EVENT 시간
+        FROM 	TB_S050.TB_S050_SW010  S010,
+                TB_S050.TB_S050_MASTER010  M010
+        where	M010.ORG_ID = #{orgId}
+        AND		M010.MASTER_ID = S010.MASTER_ID
+        AND		M010.MASTER_ID = #{masterId}
+        AND		M010.APP_TP = '01'
+    </select>
+
+</mapper>

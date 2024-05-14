@@ -1,0 +1,16 @@
+server:
+  servlet:
+    # Response UTF-8 Encoding 설정
+    encoding:
+      charset: UTF-8
+      force: true
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, beans
+
+jwt:
+  secretKey: VlwEyVBsYt9V7zq57TejMnVUyzblYcfPQye08f7MGVA9XkHN

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S051030010">
+
+    <select id="GetAreaMasterStatusVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        with master_status as (
+                SELECT	DISTINCT  MASTER_ID,
+                SW_VALUE,
+                ORG_ID
+                FROM 	TB_S050.TB_S050_SW010  S010
+                WHERE 	ORG_ID = #{orgId})
+        , master_sum as (
+                SELECT	ma.master_id,
+                        sum(ma.SW_VALUE)	val_sum,
+                        count(ma.SW_VALUE)	val_cnt,
+                        CASE WHEN SUM(ma.SW_VALUE) = 1 AND	COUNT(ma.SW_VALUE) = 1 THEN	1		-- 정상
+                            WHEN SUM(ma.SW_VALUE) = 2 AND	COUNT(ma.SW_VALUE) = 1 THEN	2		-- 이상감지
+                            WHEN SUM(ma.SW_VALUE) = 3 AND	COUNT(ma.SW_VALUE) = 1 THEN	3		-- 통신오류
+                            WHEN SUM(ma.SW_VALUE) = 3 AND	COUNT(ma.SW_VALUE) = 2 THEN	2		-- 이상감지
+                            WHEN SUM(ma.SW_VALUE) = 4 AND	COUNT(ma.SW_VALUE) = 2 THEN	3		-- 통신오류
+                            WHEN SUM(ma.SW_VALUE) >= 5  THEN	4										-- 복합오류
+                        END	EVENT_VALUE,
+                        ORG_ID
+                FROM 	master_status ma
+                        group by ma.master_id,
+                        ma.ORG_ID)
+        select	a010.area_seq,
+                a010.area_nm,
+                count(a010.master_id)  master_cnt,
+                count(case when ma.EVENT_VALUE = 1 then 1 end)   	nor,
+                count(case when ma.EVENT_VALUE = 2 then 2 end)	  	ope,
+                count(case when ma.EVENT_VALUE = 3 then 3 end)	  	err,
+                count(case when ma.EVENT_VALUE = 4 then 4 end)	  	com
+        from	TB_S050.tb_s050_area010 a010
+                inner join master_sum ma
+                on ma.master_id = a010.master_id
+                and	ma.ORG_ID = a010.ORG_ID
+        where	a010.org_id = #{orgId}
+        and		a010.area_nm like concat('%', ifnull(#{areaNm}, ''), '%')
+        and		a010.app_tp = '01'
+        group by    a010.area_seq,
+                    a010.area_nm
+    </select>
+
+    <select id="GetAreaMasterDetailVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        WITH SW_VALUE AS (
+                SELECT	DISTINCT  MASTER_ID,
+                SW_VALUE,
+                ORG_ID
+                FROM 	TB_S050.TB_S050_SW010  S010
+                WHERE 	ORG_ID = #{orgId} )
+        SELECT 	SW_V.MASTER_ID,					-- HIDDEN으로 사용할 MASTER_ID
+                M010.MASTER_NM,					-- MASTER 명
+                CASE WHEN SUM(SW_V.SW_VALUE) = 1 AND	COUNT(SW_V.SW_VALUE) = 1 THEN	1		-- 정상
+                        WHEN SUM(SW_V.SW_VALUE) = 2 AND	COUNT(SW_V.SW_VALUE) = 1 THEN	2		-- 이상감지
+                        WHEN SUM(SW_V.SW_VALUE) = 3 AND	COUNT(SW_V.SW_VALUE) = 1 THEN	3		-- 통신오류
+                        WHEN SUM(SW_V.SW_VALUE) = 3 AND	COUNT(SW_V.SW_VALUE) = 2 THEN	2		-- 동작감지
+                        WHEN SUM(SW_V.SW_VALUE) = 4 AND	COUNT(SW_V.SW_VALUE) = 2 THEN	3		-- 통신오류
+                        WHEN SUM(SW_V.SW_VALUE) >= 5  THEN	4										-- 복합오류
+                END	EVENT_VALUE,					-- SW 상태
+                SW_V.ORG_ID
+        FROM 	SW_VALUE  SW_V
+                inner join TB_S050.tb_s050_area010 	a010
+                on SW_V.MASTER_ID = a010.MASTER_ID
+                inner join TB_S050.TB_S050_MASTER010  M010
+                on SW_V.MASTER_ID = M010.MASTER_ID
+        WHERE	a010.ORG_ID = SW_V.ORG_ID
+        and		a010.area_seq = #{areaSeq}
+        and		a010.app_tp = '01'
+        and		a010.app_tp = M010.app_tp
+        GROUP BY    SW_V.MASTER_ID,
+                    M010.MASTER_NM
+    </select>
+
+</mapper>

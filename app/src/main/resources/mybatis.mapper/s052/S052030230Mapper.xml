@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S052030230">
+    <select id="GetYearOpTmVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        <!-- 년 가동시간 조회 VO -->
+        with slave_row_info as (
+            select	m010.master_nm,				-- 설비그룹
+                    s010.slave_nm,				-- 설비Item
+                    s020.slave_detail_nm,		-- Machine 명
+                    m010.master_id,				-- hidden의 master_id
+                    s010.slave_id,				-- hidden의 slave_id
+                    s010.slave_tp,				-- hidden의 slave_구분
+                    s020.seq,					-- hidden의 순번
+                    s020.install_date			-- 설치일자
+            from	tb_s050.tb_s050_master010 m010
+            inner join tb_s050.tb_s050_master020 m020
+            on m010.master_id = m020.master_id
+            inner join tb_s050.tb_s050_slave010 s010
+            on	m020.slave_id = s010.slave_id
+            inner join tb_s050.tb_s050_slave020 s020
+            on	s010.slave_id = s020.slave_id
+            where	s010.org_id = #{orgId}
+            and		s010.app_tp = '02'
+            and		s010.slave_id  in ( 14001, 14004, 16003) -- 하드코딩
+            and		s020.install_date <![CDATA[<=]]> concat(#{year}, '-01-01 00:00:00')
+        ),
+        before_op_tm as (
+            select	sri.master_nm,				-- 설비그룹
+                    sri.slave_nm,				-- 설비Item
+                    sri.slave_detail_nm,		-- Machine 명
+                    sri.master_id,				-- hidden의 master_id
+                    sri.slave_id,				-- hidden의 slave_id
+                    sri.slave_tp,				-- hidden의 slave_구분
+                    sri.seq,
+                    sum(agg020.SLAVE_OP_REAL_MIN)	SLAVE_OP_REAL_MIN
+            from	slave_row_info sri
+            left outer join tb_s050.tb_s050_aggre020  agg020
+            on sri.slave_id = agg020.slave_id
+            and sri.seq = agg020.seq
+            and	agg020.EVENT_AGGRE_YYMMDDHH <![CDATA[>=]]> sri.install_date
+            and	agg020.EVENT_AGGRE_YYMMDDHH <![CDATA[<]]> concat(#{year}, '-01-01 00:00:00')
+            group by sri.master_nm,				-- 설비그룹
+                    sri.slave_nm,				-- 설비Item
+                    sri.slave_detail_nm,		-- Machine 명
+                    sri.master_id,				-- hidden의 master_id
+                    sri.slave_id,				-- hidden의 slave_id
+                    sri.slave_tp,				-- hidden의 slave_구분
+                    sri.seq
+        ),
+        op_tm    as (
+            select	sri.master_nm,				-- 설비그룹
+                    sri.slave_nm,				-- 설비Item
+                    sri.slave_detail_nm,		-- Machine 명
+                    sri.master_id,				-- hidden의 master_id
+                    sri.slave_id,				-- hidden의 slave_id
+                    sri.slave_tp,				-- hidden의 slave_구분
+                    sri.seq,
+                    date_format(agg020.EVENT_AGGRE_YYMMDDHH, '%m') as yyyymm,
+                    sum(agg020.SLAVE_OP_REAL_MIN)	SLAVE_OP_REAL_MIN,
+                    sri.install_date            -- 설치 일자
+            from	slave_row_info sri
+            left outer join tb_s050.tb_s050_aggre020  agg020
+            on sri.slave_id = agg020.slave_id
+            and sri.seq = agg020.seq
+            and	agg020.EVENT_AGGRE_YYMMDDHH <![CDATA[>=]]> concat(#{year}, '-01-01 00:00:00')
+            and	agg020.EVENT_AGGRE_YYMMDDHH <![CDATA[<]]> concat(#{year}, '-01-01 00:00:00')
+            group by sri.master_nm,				-- 설비그룹
+            sri.slave_nm,				-- 설비Item
+            sri.slave_detail_nm,		-- Machine 명
+            sri.master_id,				-- hidden의 master_id
+            sri.slave_id,				-- hidden의 slave_id
+            sri.slave_tp,				-- hidden의 slave_구분
+            sri.seq,
+            date_format(agg020.EVENT_AGGRE_YYMMDDHH, '%m'),
+            sri.install_date
+        )
+        select	ot.master_nm,				-- 설비그룹
+                ot.slave_nm,				-- 설비Item
+                ot.slave_detail_nm,			-- Machine
+                bot.SLAVE_OP_REAL_MIN,		-- 이월가동시간
+                date_format(ot.install_date, '%Y-%m-%d') install_date,   -- 설치 일자
+                max(case when ot.yyyymm = '01' then ot.SLAVE_OP_REAL_MIN end)		as jen_val,	-- 1월가동시간
+                max(case when ot.yyyymm = '02' then ot.SLAVE_OP_REAL_MIN end)		as feb_val,	-- 2월가동시간
+                max(case when ot.yyyymm = '03' then ot.SLAVE_OP_REAL_MIN end)		as mar_val, -- 3월가동시간
+                max(case when ot.yyyymm = '04' then ot.SLAVE_OP_REAL_MIN end)		as apr_val,	-- 4월가동시간
+                max(case when ot.yyyymm = '05' then ot.SLAVE_OP_REAL_MIN end)		as may_val,	-- 5월가동시간
+                max(case when ot.yyyymm = '06' then ot.SLAVE_OP_REAL_MIN end)		as jun_val,	-- 6월가동시간
+                max(case when ot.yyyymm = '07' then ot.SLAVE_OP_REAL_MIN end)		as jul_val,	-- 7월가동시간
+                max(case when ot.yyyymm = '08' then ot.SLAVE_OP_REAL_MIN end)		as aug_val,	-- 8월가동시간
+                max(case when ot.yyyymm = '09' then ot.SLAVE_OP_REAL_MIN end)		as sep_val,	-- 9월가동시간
+                max(case when ot.yyyymm = '10' then ot.SLAVE_OP_REAL_MIN end)		as oct_val,	-- 10월가동시간
+                max(case when ot.yyyymm = '11' then ot.SLAVE_OP_REAL_MIN end)		as nov_val,	-- 11월가동시간
+                max(case when ot.yyyymm = '12' then ot.SLAVE_OP_REAL_MIN end)		as dec_val,	-- 12월가동시간
+                ot.master_id,				-- hidden의 master_id
+                ot.slave_id,				-- hidden의 slave_id
+                ot.slave_tp,				-- hidden의 slave_구분
+                ot.seq						-- hidden의 seq
+        from	op_tm	ot,
+        before_op_tm  bot
+        where	ot.slave_id	= bot.slave_id
+        and		ot.seq	= bot.seq
+        <if test='masterId != null and masterId != ""'>
+            and		ot.master_id = ifnull(#{masterId}, ot.master_id)
+        </if>
+        group by ot.master_nm,
+                ot.slave_nm,
+                ot.slave_detail_nm,
+                ot.master_id,
+                ot.slave_id,
+                ot.slave_tp,
+                ot.seq,
+                ot.install_date
+    </select>
+
+    <select id="GetMonthOpTmVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        with slave_row_info as (
+            select	m010.master_nm,				-- 설비그룹
+                    s010.slave_nm,				-- 설비Item
+                    s020.slave_detail_nm,		-- Machine 명
+                    m010.master_id,				-- hidden의 master_id
+                    s010.slave_id,				-- hidden의 slave_id
+                    s010.slave_tp,				-- hidden의 slave_구분
+                    s020.seq,					-- hidden의 순번
+                    s020.install_date			-- 설치일자
+            from	tb_s050.tb_s050_master010 m010
+            inner join tb_s050.tb_s050_master020 m020
+            on m010.master_id = m020.master_id
+            inner join tb_s050.tb_s050_slave010 s010
+            on	m020.slave_id = s010.slave_id
+            inner join tb_s050.tb_s050_slave020 s020
+            on	s010.slave_id = s020.slave_id
+            where	s010.org_id = #{orgId}
+            and		s010.app_tp = '02'
+            and		s010.slave_id  in ( 14001, 14004, 16003)  <!--하드코딩-->
+        )
+        select	sri.master_nm,				-- 설비그룹
+                sri.slave_nm,				-- 설비Item
+                sri.slave_detail_nm,		-- Machine 명
+                sri.master_id,				-- hidden의 master_id
+                sri.slave_id,				-- hidden의 slave_id
+                sri.slave_tp,				-- hidden의 slave_구분
+                sri.seq,					-- hidden의 seq
+                date_format(agg020.EVENT_AGGRE_YYMMDDHH, '%m-%d') as mmdd,	-- 일자
+                sum(agg020.SLAVE_OP_REAL_MIN)	SLAVE_OP_REAL_MIN				-- 가동시간
+        from	slave_row_info sri
+        left outer join tb_s050.tb_s050_aggre020  agg020
+        on sri.slave_id = agg020.slave_id
+        and sri.seq = agg020.seq
+        and	agg020.EVENT_AGGRE_YYMMDDHH <![CDATA[>=]]> concat(#{yearMonth}, '-01 00:00:00')
+        and	agg020.EVENT_AGGRE_YYMMDDHH <![CDATA[<=]]> concat(last_day(date_format(concat(#{yearMonth}, '-01'), '%Y-%m-%d')), ' 23:59:59')
+        <if test='slaveId != null and slaveId != ""'>
+            where	sri.slave_id = #{slaveId}
+            <if test='seq != null and seq != ""'>
+                and 	sri.seq = #{seq}
+            </if>
+        </if>
+        group by sri.master_nm,				-- 설비그룹
+                sri.slave_nm,				-- 설비Item
+                sri.slave_detail_nm,		-- Machine 명
+                sri.master_id,				-- hidden의 master_id
+                sri.slave_id,				-- hidden의 slave_id
+                sri.slave_tp,				-- hidden의 slave_구분
+                sri.seq,
+                date_format(agg020.EVENT_AGGRE_YYMMDDHH, '%m-%d')
+    </select>
+</mapper>

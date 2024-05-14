@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S052010050">
+
+    <select id="GetSlaveListVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        with master_info as (
+            select	m010.master_nm,
+                    m010.master_id,
+                    m020.slave_id,
+                    m010.master_ip,
+                    m010.master_port_no,
+                    m010.org_id
+            from	tb_s050.tb_s050_master010  m010
+            left outer join tb_s050.tb_s050_master020  m020
+            on	m010.master_id = m020.master_id
+            where	m010.org_id = #{orgId} -- 로그인 사용자의 org_id
+        ),
+        slave_cnt as (
+        select	s020.slave_id ,
+        count(s020.seq) cnt
+        from	tb_s050.tb_s050_slave020  s020
+        inner join  tb_s050.tb_s050_slave010  s010
+        on	s020.slave_id = s010.slave_id
+        group by s020.slave_id
+        )
+        select	s010.slave_id,			-- hidden slave_id
+                s020.seq,				-- hidden seq
+                s020.slave_detail_nm,	-- slave 상세명
+                s020.slave_detail_id,	-- slave 상세ID
+                s020.use_flag,			-- 사용여부
+                s010.slave_nm,			-- slave그룹명
+                s010.slave_tp,			-- 구분
+                (select	cd_v_nm
+                from 	tb_s050.tb_s050_cd010
+                where	cd_tp = 'SLAVE_TP'
+                and		org_id = #{orgId}			-- 로그인 사용자의 org_id
+                and		category = '000'
+                and		lang = 'KOR'
+                and		cd_v = s010.slave_tp) as slave_tp_nm,	-- 구분명
+                mi.master_nm,			-- master 명
+                mi.master_ip,			-- 마스터 IP
+                mi.master_port_no,		-- 마스터 Port No
+                s010.comments,			-- 비고
+                s_cnt.cnt,				-- slave 그룹에 slave_datail 건수
+                s020.ALARM_MAX_VALUE,				-- HH 값
+                s020.ALARM_MIN_VALUE,				-- LL 값
+                s020.ALARM_TM,						-- 감지시간
+                ifnull(s020.ALARM_CONFIRM_FLAG, 'N')	as ALARM_CONFIRM_FLAG,			-- 경고알림 여부
+                s020.ALARM_MAX_L_VALUE,				-- HL 값
+                s020.ALARM_MIN_H_VALUE,				-- LH 값
+                s020.SLAVE_BASE_VALUE,				-- 기준값
+                s020.PHASE_UNB_RATE				-- 상불평형
+        from	tb_s050.tb_s050_slave010  s010
+        inner join tb_s050.tb_s050_slave020  s020
+        on	s010.slave_id = s020.slave_id
+        inner join slave_cnt s_cnt
+        on  s_cnt.slave_id = s020.slave_id
+        left outer join master_info mi
+        on	s010.slave_id = mi.slave_id
+        where 	s010.org_id = #{orgId}								-- 로그인 사용자의 org_id
+        and		s010.slave_nm like concat('%', ifnull(#{slaveNm}, ''), '%')			--  검색조건 slave그룹명
+        and		s020.slave_detail_nm like concat('%', ifnull(#{slaveDetalNm}, 0), '%')	--  검색조건 slave상세명
+    </select>
+
+    <select id="GetEMSlaveListVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        <!--        <include refid="COMMON.pagingTop"/>-->
+        with master_info as (
+        select	m010.master_nm,
+        m010.master_id,
+        m020.slave_id,
+        m010.master_ip,
+        m010.master_port_no,
+        m010.org_id
+        from	tb_s050.tb_s050_master010  m010
+        left outer join tb_s050.tb_s050_master020  m020
+        on	m010.master_id = m020.master_id
+        where	m010.org_id = #{orgId} ),		-- 로그인 사용자의 org_id
+        slave_cnt as (
+        select	s020.slave_id ,
+        count(s020.seq) cnt
+        from	tb_s050.tb_s050_slave020  s020
+        inner join  tb_s050.tb_s050_slave010  s010
+        on	s020.slave_id = s010.slave_id
+        group by s020.slave_id
+        )
+        select	s010.slave_id,			-- hidden slave_id
+        s020.seq,				-- hidden seq
+        s020.slave_detail_nm,	-- slave 상세명
+        s020.slave_detail_id,	-- slave 상세ID
+        s020.use_flag,			-- 사용여부
+        s020.START_NUM,
+        s020.WATER_RATE,
+        s010.slave_nm,			-- slave그룹명
+        s010.slave_tp,			-- 구분
+        s010.READ_REG_CNT,
+        s010.REGISTER,
+        (select	cd_v_nm
+        from 	tb_s050.tb_s050_cd010
+        where	cd_tp = 'SLAVE_TP'
+        and		org_id = #{orgId}			-- 로그인 사용자의 org_id
+        and		category = '000'
+        and		lang = 'KOR'
+        and		cd_v = s010.slave_tp) as slave_tp_nm,	-- 구분명
+        mi.master_nm,			-- master 명
+        mi.master_ip,			-- 마스터 IP
+        mi.master_port_no,		-- 마스터 Port No
+        s010.comments,			-- 비고
+        s_cnt.cnt				-- slave 그룹에 slave_datail 건수
+        from	tb_s050.tb_s050_slave010  s010
+        inner join tb_s050.tb_s050_slave020  s020
+        on	s010.slave_id = s020.slave_id
+        inner join slave_cnt s_cnt
+        on  s_cnt.slave_id = s020.slave_id
+        left outer join master_info mi
+        on	s010.slave_id = mi.slave_id
+        where 	s010.org_id = #{orgId}								-- 로그인 사용자의 org_id
+        and     s010.app_tp='04'
+        and		s010.slave_nm like concat('%', ifnull(#{slaveNm}, ''), '%')			--  검색조건 slave그룹명
+        and		s020.slave_detail_nm like concat('%', ifnull(#{slaveDetailNm}, ''), '%')	--  검색조건 slave상세명
+        <!--        <include refid="COMMON.pagingBottom"/>-->
+    </select>
+
+    <delete id="deleteSlaveHeader" parameterType="java.util.Map">
+        DELETE FROM tb_s050.tb_s050_slave010
+        where	slave_id = #{slaveId}
+    </delete>
+
+    <delete id="deleteSlaveSeq" parameterType="java.util.Map">
+        DELETE FROM tb_s050.tb_s050_slave020
+        where	slave_id = #{slaveId}
+    </delete>
+
+    <delete id="deleteSlave" parameterType="java.util.Map">
+        DELETE FROM tb_s050.tb_s050_master020
+        where	slave_id = #{slaveId}
+    </delete>
+
+    <select id="getMaster020" parameterType="java.util.Map" resultType="CamelHashMap">
+        SELECT * FROM tb_s050.tb_s050_master020 where SLAVE_ID = #{slaveId}
+    </select>
+
+</mapper>

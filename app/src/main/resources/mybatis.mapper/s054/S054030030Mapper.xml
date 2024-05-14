@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S054030030">
+
+    <select id="GetLevelInfoVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        select	fft_event_tm,
+           CASE #{valueNum}
+                WHEN 1 THEN VALUE_1
+                WHEN 2 THEN VALUE_2
+                WHEN 3 THEN VALUE_3
+                WHEN 4 THEN VALUE_4
+                WHEN 5 THEN VALUE_5
+                WHEN 6 THEN VALUE_6
+                WHEN 7 THEN VALUE_7
+                WHEN 8 THEN VALUE_8
+                WHEN 9 THEN VALUE_9
+                WHEN 10 THEN VALUE_10
+                WHEN 11 THEN VALUE_11
+                WHEN 12 THEN VALUE_12
+                WHEN 13 THEN VALUE_13
+                WHEN 14 THEN VALUE_14
+                WHEN 15 THEN VALUE_15
+                WHEN 16 THEN VALUE_16
+                WHEN 17 THEN VALUE_17
+                WHEN 18 THEN VALUE_18
+                WHEN 19 THEN VALUE_19
+                WHEN 20 THEN VALUE_20
+                WHEN 21 THEN VALUE_21
+                WHEN 22 THEN VALUE_22
+                WHEN 23 THEN VALUE_23
+                WHEN 24 THEN VALUE_24
+                WHEN 25 THEN VALUE_25
+                WHEN 26 THEN VALUE_26
+                WHEN 27 THEN VALUE_27
+                WHEN 28 THEN VALUE_28
+                WHEN 29 THEN VALUE_29
+                WHEN 30 THEN VALUE_30
+                WHEN 31 THEN VALUE_31
+                WHEN 32 THEN VALUE_32
+                WHEN 33 THEN VALUE_33
+                WHEN 34 THEN VALUE_34
+                WHEN 35 THEN VALUE_35
+                WHEN 36 THEN VALUE_36
+                WHEN 37 THEN VALUE_37
+                WHEN 38 THEN VALUE_38
+                WHEN 39 THEN VALUE_39
+                WHEN 40 THEN VALUE_40
+                WHEN 41 THEN VALUE_41
+                WHEN 42 THEN VALUE_42
+                WHEN 43 THEN VALUE_43
+                WHEN 44 THEN VALUE_44
+                WHEN 45 THEN VALUE_45
+                WHEN 46 THEN VALUE_46
+                WHEN 47 THEN VALUE_47
+                WHEN 48 THEN VALUE_48
+                WHEN 49 THEN VALUE_49
+                WHEN 50 THEN VALUE_50
+                WHEN 51 THEN VALUE_51
+                WHEN 52 THEN VALUE_52
+                WHEN 53 THEN VALUE_53
+                WHEN 54 THEN VALUE_54
+                WHEN 55 THEN VALUE_55
+                WHEN 56 THEN VALUE_56
+                WHEN 57 THEN VALUE_57
+                WHEN 58 THEN VALUE_58
+                WHEN 59 THEN VALUE_59
+                WHEN 60 THEN VALUE_60
+                WHEN 61 THEN VALUE_61
+                WHEN 62 THEN VALUE_62
+                WHEN 63 THEN VALUE_63
+                WHEN 64 THEN VALUE_64
+                WHEN 65 THEN VALUE_65
+                WHEN 66 THEN VALUE_66
+                WHEN 67 THEN VALUE_67
+                WHEN 68 THEN VALUE_68
+                WHEN 69 THEN VALUE_69
+                WHEN 70 THEN VALUE_70
+                WHEN 71 THEN VALUE_71
+                WHEN 72 THEN VALUE_72
+                WHEN 73 THEN VALUE_73
+                WHEN 74 THEN VALUE_74
+                WHEN 75 THEN VALUE_75
+                WHEN 76 THEN VALUE_76
+                WHEN 77 THEN VALUE_77
+                WHEN 78 THEN VALUE_78
+                WHEN 79 THEN VALUE_79
+                WHEN 80 THEN VALUE_80
+                WHEN 81 THEN VALUE_81
+                WHEN 82 THEN VALUE_82
+                WHEN 83 THEN VALUE_83
+                WHEN 84 THEN VALUE_84
+                WHEN 85 THEN VALUE_85
+                WHEN 86 THEN VALUE_86
+                WHEN 87 THEN VALUE_87
+                WHEN 88 THEN VALUE_88
+                WHEN 89 THEN VALUE_89
+                WHEN 90 THEN VALUE_90
+                WHEN 91 THEN VALUE_91
+                WHEN 92 THEN VALUE_92
+                WHEN 93 THEN VALUE_93
+                WHEN 94 THEN VALUE_94
+                WHEN 95 THEN VALUE_95
+                WHEN 96 THEN VALUE_96
+                WHEN 97 THEN VALUE_97
+                WHEN 98 THEN VALUE_98
+                WHEN 99 THEN VALUE_99
+                WHEN 100 THEN VALUE_100
+            END VALUE
+        FROM 	tb_s050.tb_s050_fft010 f010
+        where	f010.slave_id = #{slaveId}
+        and		f010.seq = #{seq}
+        and		fft_event_tm <![CDATA[>=]]> date_sub(date_format(#{toTime}, '%Y-%m-%d %T'), interval 1 HOUR)
+        and		fft_event_tm <![CDATA[<=]]> #{toTime};
+
+    </select>
+
+    <select id="getYMinMaxVO" parameterType="java.util.Map" resultType="CamelHashMap">
+         SELECT
+              CASE
+                   WHEN max(val) > 0 THEN ceiling(max(val) * 1.1)
+                   WHEN max(val) = 0 THEN 3
+                   ELSE ceiling(max(val) * 0.9)
+              END AS maxY,
+              CASE
+                   WHEN min(val) > 0 THEN floor(min(val) * 0.9)
+                   WHEN min(val) = 0 THEN -3
+                   ELSE floor(min(val) * 1.1)
+              END AS minY
+         FROM (
+              SELECT
+                   CASE #{valueNum}
+                        WHEN 1 THEN VALUE_1
+                        WHEN 2 THEN VALUE_2
+                        WHEN 3 THEN VALUE_3
+                        WHEN 4 THEN VALUE_4
+                        WHEN 5 THEN VALUE_5
+                        WHEN 6 THEN VALUE_6
+                        WHEN 7 THEN VALUE_7
+                        WHEN 8 THEN VALUE_8
+                        WHEN 9 THEN VALUE_9
+                        WHEN 10 THEN VALUE_10
+                        WHEN 11 THEN VALUE_11
+                        WHEN 12 THEN VALUE_12
+                        WHEN 13 THEN VALUE_13
+                        WHEN 14 THEN VALUE_14
+                        WHEN 15 THEN VALUE_15
+                        WHEN 16 THEN VALUE_16
+                        WHEN 17 THEN VALUE_17
+                        WHEN 18 THEN VALUE_18
+                        WHEN 19 THEN VALUE_19
+                        WHEN 20 THEN VALUE_20
+                        WHEN 21 THEN VALUE_21
+                        WHEN 22 THEN VALUE_22
+                        WHEN 23 THEN VALUE_23
+                        WHEN 24 THEN VALUE_24
+                        WHEN 25 THEN VALUE_25
+                        WHEN 26 THEN VALUE_26
+                        WHEN 27 THEN VALUE_27
+                        WHEN 28 THEN VALUE_28
+                        WHEN 29 THEN VALUE_29
+                        WHEN 30 THEN VALUE_30
+                        WHEN 31 THEN VALUE_31
+                        WHEN 32 THEN VALUE_32
+                        WHEN 33 THEN VALUE_33
+                        WHEN 34 THEN VALUE_34
+                        WHEN 35 THEN VALUE_35
+                        WHEN 36 THEN VALUE_36
+                        WHEN 37 THEN VALUE_37
+                        WHEN 38 THEN VALUE_38
+                        WHEN 39 THEN VALUE_39
+                        WHEN 40 THEN VALUE_40
+                        WHEN 41 THEN VALUE_41
+                        WHEN 42 THEN VALUE_42
+                        WHEN 43 THEN VALUE_43
+                        WHEN 44 THEN VALUE_44
+                        WHEN 45 THEN VALUE_45
+                        WHEN 46 THEN VALUE_46
+                        WHEN 47 THEN VALUE_47
+                        WHEN 48 THEN VALUE_48
+                        WHEN 49 THEN VALUE_49
+                        WHEN 50 THEN VALUE_50
+                        WHEN 51 THEN VALUE_51
+                        WHEN 52 THEN VALUE_52
+                        WHEN 53 THEN VALUE_53
+                        WHEN 54 THEN VALUE_54
+                        WHEN 55 THEN VALUE_55
+                        WHEN 56 THEN VALUE_56
+                        WHEN 57 THEN VALUE_57
+                        WHEN 58 THEN VALUE_58
+                        WHEN 59 THEN VALUE_59
+                        WHEN 60 THEN VALUE_60
+                        WHEN 61 THEN VALUE_61
+                        WHEN 62 THEN VALUE_62
+                        WHEN 63 THEN VALUE_63
+                        WHEN 64 THEN VALUE_64
+                        WHEN 65 THEN VALUE_65
+                        WHEN 66 THEN VALUE_66
+                        WHEN 67 THEN VALUE_67
+                        WHEN 68 THEN VALUE_68
+                        WHEN 69 THEN VALUE_69
+                        WHEN 70 THEN VALUE_70
+                        WHEN 71 THEN VALUE_71
+                        WHEN 72 THEN VALUE_72
+                        WHEN 73 THEN VALUE_73
+                        WHEN 74 THEN VALUE_74
+                        WHEN 75 THEN VALUE_75
+                        WHEN 76 THEN VALUE_76
+                        WHEN 77 THEN VALUE_77
+                        WHEN 78 THEN VALUE_78
+                        WHEN 79 THEN VALUE_79
+                        WHEN 80 THEN VALUE_80
+                        WHEN 81 THEN VALUE_81
+                        WHEN 82 THEN VALUE_82
+                        WHEN 83 THEN VALUE_83
+                        WHEN 84 THEN VALUE_84
+                        WHEN 85 THEN VALUE_85
+                        WHEN 86 THEN VALUE_86
+                        WHEN 87 THEN VALUE_87
+                        WHEN 88 THEN VALUE_88
+                        WHEN 89 THEN VALUE_89
+                        WHEN 90 THEN VALUE_90
+                        WHEN 91 THEN VALUE_91
+                        WHEN 92 THEN VALUE_92
+                        WHEN 93 THEN VALUE_93
+                        WHEN 94 THEN VALUE_94
+                        WHEN 95 THEN VALUE_95
+                        WHEN 96 THEN VALUE_96
+                        WHEN 97 THEN VALUE_97
+                        WHEN 98 THEN VALUE_98
+                        WHEN 99 THEN VALUE_99
+                        WHEN 100 THEN VALUE_100
+                        END as val
+              FROM 	tb_s050.tb_s050_fft010 f010
+              where	slave_id = #{slaveId}
+                    and		seq = #{seq}
+                    and		fft_event_tm <![CDATA[>=]]> date_sub(date_format(#{toTime}, '%Y-%m-%d %T'), interval 1 HOUR)
+                    and		fft_event_tm <![CDATA[<=]]> #{toTime}
+         ) AS subQuery
+    </select>
+
+    <select id="getAlarmLineVO" parameterType="java.util.Map" resultType="CamelHashMap">
+         SELECT ALARM_MAX_VALUE,
+                ALARM_MIN_VALUE
+         FROM tb_s050.tb_s050_slave020
+         WHERE slave_id = #{slaveId}
+         AND seq = #{valueNum};
+    </select>
+
+
+</mapper>

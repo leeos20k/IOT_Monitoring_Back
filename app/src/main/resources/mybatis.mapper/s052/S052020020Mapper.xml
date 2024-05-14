@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S052020020">
+    <select id="GetSlaveName" parameterType="java.util.Map" resultType="CamelHashMap">
+        -- ① 상단 slave 명조회 VO
+        select   s010.slave_nm
+        from   tb_s050.tb_s050_slave010   s010
+        where   s010.slave_id = #{slaveId}
+    </select>
+
+    <select id="GetLevelValue" parameterType="java.util.Map" resultType="CamelHashMap">
+        -- ② 레벨 추이도 값 조회 VO
+        select  date_format(p010.pump_event_tm, '%Y-%m-%d %H:%i:%s') as pump_event_tm,
+                p010.r_value,
+                p010.s_value,
+                p010.t_value,
+                p010.l_value,
+                s020.alarm_max_value,
+                s020.alarm_min_value,
+                s020.alarm_tm
+        from   tb_s050.tb_s050_pump010   p010
+            inner join tb_s050.tb_s050_slave020   s020
+            on   p010.slave_id = s020.slave_id
+            and   p010.seq = s020.seq
+        where   p010.slave_id = #{slaveId}				-- 선택한 slave_id
+        and      p010.seq = #{seq}					-- 선택한 slave_ 순번
+        and      p010.pump_event_tm <![CDATA[>=]]> date_format(#{fromTime}, '%Y-%m-%d %H:%i:%s')	-- 검색조건 from 일시 ('2023-08-01 18:00:00')
+        and      p010.pump_event_tm <![CDATA[<=]]> date_format(#{toTime}, '%Y-%m-%d %H:%i:%s') 		-- 검색조건 to 일시 ('2023-09-01 18:00:00')
+    </select>
+</mapper>

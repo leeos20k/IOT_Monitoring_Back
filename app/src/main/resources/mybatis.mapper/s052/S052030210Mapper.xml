@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S052030210">
+    <select id="GetRegFixMgnVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        <!-- Machine 점검 상세 조회 -->
+        select	m010.master_nm,				-- 설비그룹
+                s010.slave_nm,				-- 설비Item
+                s020.slave_detail_nm,		-- Machine 명
+                fix010.install_date,		-- 설치일자
+                fix010.slave_op_tm,			-- 가동시간
+                fix010.slave_base_day,		-- 적용일자
+                fix010.slave_base_tm,		-- 시간(Hr)
+                m010.master_id,				-- hidden의 master_id
+                s010.slave_id,				-- hidden의 slave_id
+                s010.slave_tp,				-- hidden의 slave_구분
+                s020.seq,					-- hidden의 순번
+                fix010.fix_id				-- hidden의 fix_id
+        from	tb_s050.tb_s050_master010 m010
+        inner join tb_s050.tb_s050_master020 m020
+        on m010.master_id = m020.master_id
+        inner join tb_s050.tb_s050_slave010 s010
+        on	m020.slave_id = s010.slave_id
+        inner join tb_s050.tb_s050_slave020 s020
+        on	s010.slave_id = s020.slave_id
+        left outer join tb_s050.tb_s050_fix010 fix010
+        on s020.slave_id = fix010.slave_id
+        and s020.seq = fix010.seq
+        where	s010.org_id = #{orgId}
+        and		s010.app_tp = '02'
+        and		s010.slave_id  in ( 14001, 14004, 16003) -- 하드코딩
+        and		fix010.fix_id = #{fixId}
+    </select>
+
+    <insert id="InsertFix010" parameterType="java.util.Map">
+        <!-- ① tb_s050_fix010 정기점검 내용 신규 Insert 처리 -->
+        INSERT INTO tb_s050.tb_s050_fix010
+                    (FIX_ID,
+                    CREATE_OBJECT_ID,
+                    CREATE_TIMESTAMP,
+                    CREATE_PROGRAM_ID,
+                    LAST_OBJECT_ID,
+                    UPDATE_TIMESTAMP,
+                    UPDATE_PROGRAM_ID,
+                    INSTALL_DATE,
+                    SLAVE_ID,
+                    SEQ,
+                    SLAVE_OP_TM,
+                    SLAVE_BASE_DAY,
+                    SLAVE_BASE_TM)
+        VALUES
+                    (nextval(tb_s050.sq_s050_fix010),
+                    #{loginId},				-- 로그인 ID
+                    sysdate(),
+                    '',
+                    #{loginId},				-- 로그인 ID
+                    sysdate(),
+                    '',
+                    #{installDate},				-- 설치일자
+                    #{slaveId},				-- slave_id
+                    #{seq},				-- 순번
+                    #{slaveOpTm},				-- 가동시간
+                    #{slaveBaseDay},				-- 적용일자
+                    #{slaveBaseTm}) 			-- 적용시간 / 적용일자 적용시 =>  ③ 적용일자 선택 기준시간 항목
+    </insert>
+
+    <update id="UpdateFix010" parameterType="java.util.Map">
+        <!-- ② tb_s050_slave020 설비 Machine 설치내용 update 처리 -->
+        UPDATE	tb_s050.tb_s050_slave020
+        SET		LAST_OBJECT_ID = #{loginId},			-- 로그인 id
+                UPDATE_TIMESTAMP = sysdate(),
+                UPDATE_PROGRAM_ID = 'S052030210',
+                INSTALL_DATE = #{installDate},				-- 화면의 설치일자
+                SLAVE_OP_TM = #{slaveOpTm},				-- 화면의 가동시간
+                SLAVE_BASE_DAY = #{slaveBaseDay},			-- 화면의 적용일자
+                SLAVE_BASE_TM = #{slaveBaseTm},				-- 화면의 기준시간 / 적용일자 적용시 =>  ③ 적용일자 선택 기준시간 항목
+        WHERE SLAVE_ID = #{slaveId}						-- 화면의 hidden slave_id
+        AND SEQ = #{seq}
+    </update>
+
+    <select id="GetRegFixBaseTmVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        <!-- ③ 적용일자 선택 기준시간 가져오는 qeury -->
+        select	agg020.slave_id,
+                agg020.seq,
+                round(sum(agg020.SLAVE_OP_REAL_MIN)/60)	as SLAVE_OP_REAL_MIN		-- 기준시간
+        from	tb_s050.tb_s050_aggre020  agg020
+        where	agg020.slave_id = #{slaveId}
+        and		agg020.seq = #{seq}
+        and		agg020.EVENT_AGGRE_YYMMDDHH <![CDATA[>=]]> concat(#{eventAggreYymmddhh}, ' 00:00:00')
+        and		agg020.EVENT_AGGRE_YYMMDDHH <![CDATA[<=]]> concat(#{eventAggreYymmddhh}, ' 23:59:59')
+        group by agg020.slave_id,
+                 agg020.seq
+    </select>
+</mapper>

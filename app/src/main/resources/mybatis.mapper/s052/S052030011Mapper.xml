@@ -1,0 +1,416 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S052030011">
+    <select id="GetEnergyListVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        with plan_value as (
+        -- 생산계획 조회 query
+        select	p010.val,
+        p010.energe_plan_tp,
+        date_format(p010.plan_year, '%Y')	plan_year
+        from	tb_s050.tb_s050_plan010 p010,
+        tb_s050.work_day_shift  sh
+        where	p010.plan_year = concat(date_format(sh.work_day, '%Y-%m'), '-01 07:00:01')
+        and		p010.org_id = #{orgId} ),
+        total_info as (
+        -- 작업조의 누적 실럭 조회 query
+        select 	ag011.slave_id,
+        ag011.seq,
+        sl020.water_rate,
+        sum(case when slave_tp = 'V' then ag011.t_value / 1000
+        else ag011.t_value
+        end) val,
+        sl010.slave_tp,
+        floor(count(distinct ag011.event_aggre_ten_mi)/6) +  mod(count(distinct ag011.event_aggre_ten_mi), 6)/6 op_min
+        from    tb_s050.tb_s050_aggre011   ag011
+        ,tb_s050.tb_s050_slave010	sl010
+        ,tb_s050.tb_s050_slave020	sl020
+        ,tb_s050.work_day_shift  wds
+        where	ag011.org_id 	= #{orgId}
+        and		sl010.org_id 	= ag011.org_id
+        and		sl010.slave_id 	= ag011.slave_id
+        and		sl020.slave_id 	= ag011.slave_id
+        and		sl020.seq 		= ag011.seq
+        and		sl010.app_tp 	= '04'
+        and		ag011.event_aggre_ten_mi <![CDATA[>=]]> concat(wds.work_day,  ' ', wds.shift_start_time)
+        and		ag011.event_aggre_ten_mi <![CDATA[<=]]> concat(date_format(sysdate(), '%Y-%m-%d %H:'), wds.to_min , ':00')
+        group by  ag011.slave_id,
+        ag011.seq,
+        sl010.slave_tp ),
+        row_value as (
+        -- 작업조의 누적 실적 조회 query
+        select 	max(case when slave_tp = 'O' and seq = 1 then val end) gyp_a_value,
+        max(case when slave_tp = 'O' and seq = 1 then water_rate end) gyp_a_water_rate,
+        max(case when slave_tp = 'O' and seq = 2 then val end) gyp_b_value,
+        max(case when slave_tp = 'O' and seq = 2 then water_rate end) gyp_b_water_rate,
+        max(case when slave_tp = 'O' and seq = 3 then val end) gyp_c_value,
+        max(case when slave_tp = 'O' and seq = 3 then water_rate end) gyp_c_water_rate,
+        max(case when slave_tp = 'O' and seq = 4 then val end) slag_value,
+        max(case when slave_tp = 'O' and seq = 4 then water_rate end) slag_water_rate,
+        max(case when slave_tp = 'O' and seq = 5 then val end) f_value ,
+        max(case when slave_tp = 'O' and seq = 5 then water_rate end) f_water_rate,
+        max(case when slave_tp = 'N' then val end) lng_value,
+        max(case when slave_tp = 'V' then val end) v_value,
+        max(case when slave_tp = 'O' and seq = 1 then op_min end)  op_tm,
+        max(case when slave_tp = 'O' and seq = 1 then val end) +
+        max(case when slave_tp = 'O' and seq = 2 then val end) +
+        max(case when slave_tp = 'O' and seq = 3 then val end) +
+        max(case when slave_tp = 'O' and seq = 4 then val end) +
+        max(case when slave_tp = 'O' and seq = 5 then val end)  as prod_qty
+        from	total_info ),
+        ten_max_tm as (
+        -- 작업조의 이전 10분 전의 Max 시간 조회 query
+        select 	max(ag011.event_aggre_ten_mi) max_tm,
+        ag011.slave_id
+        from    tb_s050.tb_s050_aggre011   ag011
+        ,tb_s050.work_day_shift  wds
+        ,tb_s050.tb_s050_slave010   sl010
+        where	ag011.event_aggre_ten_mi <![CDATA[>=]]> concat(wds.work_day,  ' ', wds.shift_start_time)
+        and		ag011.event_aggre_ten_mi <![CDATA[<=]]> concat(date_format(sysdate(), '%Y-%m-%d %H:'), wds.to_min , ':00')
+        and		sl010.slave_id = ag011.slave_id
+        and		sl010.slave_tp 	= 'O'
+        and		sl010.app_tp 	= '04'
+        group by ag011.slave_id ),
+        ten_value as (
+        -- 작업조의 이전 10분 전의 생산성 조회 query
+        select	sum(t_value) as tn_value,
+        ag011.slave_id
+        from	tb_s050.tb_s050_aggre011   ag011
+        ,ten_max_tm  tvi
+        where 	tvi.max_tm 		= ag011.event_aggre_ten_mi
+        and		tvi.slave_id 	= ag011.slave_id
+        group by ag011.slave_id)
+        -- 생산계획 조회
+        select	plan_year,								-- hidden 의 년도
+        'PL' tp,								-- hidden 의 tp로 'PL' - 계획 / 'RS' - 실적
+        null	gyp_a_value,					-- GYP_A 값
+        null	gyp_a_water_rate,				-- GYP_A 수분율
+        null	gyp_b_value,					-- GYP_B 값
+        null	gyp_b_water_rate,				-- GYP_B 수분율
+        null	gyp_c_value,					-- GYP_C 값
+        null	gyp_c_water_rate,				-- GYP_C 수분율
+        null	slag_value,						-- slag 값
+        null	slag_water_rate,				-- slag 수분율
+        null	f_value,						-- 증량제 값
+        null	f_water_rate,					-- 증량제 수분율
+        round((max(case when energe_plan_tp = 11 then val end) / max(case when energe_plan_tp = 21 then val end)) /6, 1) ten_min_pro_rate,	-- 10분생산성
+        round(max(case when energe_plan_tp = 11 then val end) / max(case when energe_plan_tp = 21 then val end), 1) prod_rate,				-- 생산성
+        round(max(case when energe_plan_tp = 41 then val end) / max(case when energe_plan_tp = 11 then val end), 2) lng_rate,				-- 연로원단위
+        round(max(case when energe_plan_tp = 31 then val end) / max(case when energe_plan_tp = 11 then val end), 1) vo_rate					-- 동력원단위
+        from	plan_value
+        group by plan_year
+        union all
+        -- 생산실적 조회
+        select	date_format(sysdate(), '%Y') plan_year,					-- hidden 의 년도
+        'RS'	tp,												-- hidden 의 tp로 'PL' - 계획 / 'RS' - 실적
+        round(gyp_a_value, 0)	as gyp_a_value,					-- GYP_A 값
+        gyp_a_water_rate,										-- GYP_A 수분율
+        round(gyp_b_value, 0)	as gyp_b_value,					-- GYP_B 값
+        gyp_b_water_rate,										-- GYP_B 수분율
+        round(gyp_c_value, 0)	as gyp_c_value,					-- GYP_C 값
+        gyp_c_water_rate,										-- GYP_C 수분율
+        round(slag_value, 0)	as slag_value,					-- slag 값
+        slag_water_rate,										-- slag 수분율
+        round(f_value, 0)		as f_value,						-- 증량제 값
+        f_water_rate,											-- 증량제 수분율
+        round(te.tn_value, 1)	as ten_min_pro_rate,			-- 10분생산성
+        round(ro.prod_qty / op_tm, 1)	as prod_rate,			-- 생산성
+        round(ro.lng_value / ro.prod_qty, 2)	as	lng_rate,	-- 연로원단위
+        round(ro.v_value / ro.prod_qty, 1)	as vo_rate			-- 동력원단위
+        from	row_value  ro,
+        ten_value te  ;
+    </select>
+
+    <select id="GetEnergyListPL" parameterType="java.util.Map" resultType="CamelHashMap">
+        with plan_value as (
+        -- 생산계획 조회 query
+        select	p010.val,
+        p010.energe_plan_tp,
+        date_format(p010.plan_year, '%Y')	plan_year
+        from	tb_s050.tb_s050_plan010 p010,
+        tb_s050.work_day_shift  sh
+        where	p010.plan_year = concat(date_format(sh.work_day, '%Y-%m'), '-01 07:00:01')
+        and		p010.org_id = #{orgId})
+        select	plan_year,								-- hidden 의 년도
+        'PL' tp,								-- hidden 의 tp로 'PL' - 계획 / 'RS' - 실적
+        null	gyp_a_value,					-- GYP_A 값
+        null	gyp_a_water_rate,				-- GYP_A 수분율
+        null	gyp_b_value,					-- GYP_B 값
+        null	gyp_b_water_rate,				-- GYP_B 수분율
+        null	gyp_c_value,					-- GYP_C 값
+        null	gyp_c_water_rate,				-- GYP_C 수분율
+        null	slag_value,						-- slag 값
+        null	slag_water_rate,				-- slag 수분율
+        null	f_value,						-- 증량제 값
+        null	f_water_rate,					-- 증량제 수분율
+        round((max(case when energe_plan_tp = 11 then val end) / max(case when energe_plan_tp = 21 then val end)) /6, 1) ten_min_pro_rate,	-- 10분생산성
+        round(max(case when energe_plan_tp = 11 then val end) / max(case when energe_plan_tp = 21 then val end), 1) prod_rate,				-- 생산성
+        round(max(case when energe_plan_tp = 41 then val end) / max(case when energe_plan_tp = 11 then val end), 2) lng_rate,				-- 연로원단위
+        round(max(case when energe_plan_tp = 31 then val end) / max(case when energe_plan_tp = 11 then val end), 1) vo_rate					-- 동력원단위
+        from	plan_value
+        group by plan_year ;
+    </select>
+    <select id="GetEnergyListRS" parameterType="java.util.Map" resultType="CamelHashMap">
+        with slave_info as (
+        select	sl010.slave_id ,
+        sl020.seq,
+        sl010.slave_tp,
+        sl020.water_rate
+        from	tb_s050.tb_s050_slave010  sl010,
+        tb_s050.tb_s050_slave020  sl020
+        where	sl010.app_tp = '04'
+        and		sl010.slave_tp = 'O'
+        and		sl010.org_id = #{orgId}
+        and		sl010.slave_id = sl020.slave_id
+        and 	sl020.data_end_status is null ),
+        agg_info as (
+        select	ag011.slave_id ,
+        ag011.seq,
+        sum(ag011.t_value) t_value,
+        count(distinct event_aggre_ten_mi) cnt
+        from	tb_s050.tb_s050_aggre011  ag011,
+        tb_s050.work_day_shift  wds
+        where	ag011.event_aggre_ten_mi <![CDATA[>]]> concat(wds.work_day,  ' ', wds.shift_start_time)
+        and		ag011.event_aggre_ten_mi <![CDATA[<=]]> concat(date_format(sysdate(), '%Y-%m-%d %H:'), wds.to_min , ':00')
+        and		ag011.t_value <![CDATA[>]]> 0
+        group by ag011.slave_id ,
+        ag011.seq
+        )
+        select	date_format(sysdate(), '%Y') plan_year,					-- hidden 의 년도
+        'RS'	tp,												-- hidden 의 tp로 'PL' - 계획 / 'RS' - 실적
+        ifnull(max(case when si.seq = 1 then ai.t_value end), 0) 	as gyp_a_value,
+        max(case when si.seq = 1 then si.water_rate end)  	as gyp_a_water_rate,
+        ifnull(max(case when si.seq = 2 then ai.t_value end), 0) 	as gyp_b_value,
+        max(case when si.seq = 2 then si.water_rate end)  	as gyp_b_water_rate,
+        ifnull(max(case when si.seq = 3 then ai.t_value end), 0) 	as gyp_c_value,
+        max(case when si.seq = 3 then si.water_rate end)  	as gyp_c_water_rate,
+        ifnull(max(case when si.seq = 4 then ai.t_value end) , 0)	as slag_value,
+        max(case when si.seq = 4 then si.water_rate end)  	as slag_water_rate,
+        ifnull(max(case when si.seq = 5 then ai.t_value end), 0) 	as f_value,
+        max(case when si.seq = 5 then si.water_rate end)  	as f_water_rate,
+        round((ifnull(max(case when si.seq = 1 then ai.t_value end), 0) +
+        ifnull(max(case when si.seq = 2 then ai.t_value end), 0) +
+        ifnull(max(case when si.seq = 3 then ai.t_value end), 0) +
+        ifnull(max(case when si.seq = 4 then ai.t_value end), 0) +
+        ifnull(max(case when si.seq = 5 then ai.t_value end), 0) ) / (ai.cnt), 1) as  ten_min_pro_rate ,
+        round((ifnull(max(case when si.seq = 1 then ai.t_value end), 0) +
+        ifnull(max(case when si.seq = 2 then ai.t_value end), 0) +
+        ifnull(max(case when si.seq = 3 then ai.t_value end), 0) +
+        ifnull(max(case when si.seq = 4 then ai.t_value end), 0) +
+        ifnull(max(case when si.seq = 5 then ai.t_value end), 0) ) / (ai.cnt/6), 1) as  prod_rate
+        from	slave_info si
+        left outer join agg_info	ai
+        on si.slave_id = ai.slave_id
+        and	si.seq = ai.seq
+        group by si.slave_id ,
+        si.slave_tp ;
+    </select>
+    <select id="GetEnergyListRSNV" parameterType="java.util.Map" resultType="CamelHashMap">
+        with prod_base_row_info as (
+        select	ag011.event_aggre_ten_mi	as event_aggre_ten_mi,
+        sum(ag011.t_value) 	as t_value
+        from	tb_s050.tb_s050_aggre011  ag011
+        ,tb_s050.work_day_shift  wds
+        ,tb_s050.tb_s050_slave010  sl010
+        ,tb_s050.tb_s050_slave020  sl020
+        where	ag011.event_aggre_ten_mi <![CDATA[>]]> concat(wds.work_day,  ' ', wds.shift_start_time)
+        and		ag011.event_aggre_ten_mi <![CDATA[<=]]> concat(date_format(sysdate(), '%Y-%m-%d %H:'), wds.to_min , ':00')
+        and		ag011.slave_id = sl010.slave_id
+        and		ag011.slave_id = sl020.slave_id
+        and		ag011.seq = sl020.seq
+        and		sl020.data_end_status is null
+        and		sl010.app_tp = '04'
+        and		sl010.slave_tp = 'O'
+        and		sl010.org_id = #{orgId}
+        and		ag011.t_value <![CDATA[>]]> 0
+        group by ag011.event_aggre_ten_mi ),
+        lng_volt_row_info as (
+        select	ag011.slave_id,
+        sum(case when sl010.slave_tp='V' then ag011.t_value/1000
+        else ag011.t_value
+        end) / sum(pbri.t_value)  n_v_value,
+        sl010.slave_tp
+        from	tb_s050.tb_s050_aggre011  ag011
+        ,prod_base_row_info	pbri
+        ,tb_s050.tb_s050_slave010  sl010
+        ,tb_s050.tb_s050_slave020  sl020
+        where	ag011.slave_id = sl010.slave_id
+        and		ag011.slave_id = sl020.slave_id
+        and		ag011.seq = sl020.seq
+        and		sl020.data_end_status is null
+        and		sl010.app_tp = '04'
+        and		sl010.slave_tp in ('N', 'V')
+        and		ag011.event_aggre_ten_mi = pbri.event_aggre_ten_mi
+        group by ag011.slave_id,
+        sl010.slave_tp )
+        select	round(max(case when slave_tp ='N' then n_v_value end), 2) n_value,
+        round(max(case when slave_tp ='V' then n_v_value end), 1) v_value
+        from	lng_volt_row_info ;
+    </select>
+
+
+
+
+
+
+
+    <select id="GetEnergyPlanListVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        with plan_value as (
+        -- 생산계획 조회 query
+        select	p010.val,
+        p010.energe_plan_tp,
+        date_format(p010.plan_year, '%Y')	plan_year
+        from	tb_s050.tb_s050_plan010 p010,
+        tb_s050.work_day_shift  sh
+        where	p010.plan_year = concat(date_format(sh.work_day, '%Y-%m'), '-01 07:00:01')
+        and		p010.org_id = #{orgId} )
+        select	plan_year,			-- hidden 년도
+        round(max(case when energe_plan_tp = 11 then val end) / max(case when energe_plan_tp = 21 then val end), 1) prod_rate,	-- 생산성 계획
+        round(max(case when energe_plan_tp = 41 then val end) / max(case when energe_plan_tp = 11 then val end), 2)  lng_rate,	-- LNG 계획
+        round(max(case when energe_plan_tp = 31 then val end) / max(case when energe_plan_tp = 11 then val end), 1)  vo_rate	-- 전력 계획
+        from	plan_value
+        group by plan_year ;
+    </select>
+
+    <select id="GetEnergyRstProdVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        select	ag011.event_aggre_ten_mi,			-- 10분 단위 시간
+        sum(t_value)*6	prod_wgt,		-- 10분단위의 생산성
+        ag011.slave_id ,				-- slave_id
+        ag011.alarm_confirm				-- hidden으로 사용할 alarm 확인여부 (Y - 확인, 그외 미확인) => 마지막 데이타를 확인하여 알림여부 확인
+        from	tb_s050.tb_s050_aggre011  ag011
+        ,tb_s050.work_day_shift  wds
+        ,tb_s050.tb_s050_slave010  sl010
+        ,tb_s050.tb_s050_slave020  sl020
+        where	ag011.event_aggre_ten_mi <![CDATA[>]]> concat(wds.work_day,  ' ', wds.shift_start_time)
+        and		ag011.event_aggre_ten_mi <![CDATA[<=]]> concat(date_format(sysdate(), '%Y-%m-%d %H:'), wds.to_min , ':00')
+        and		ag011.slave_id = sl010.slave_id
+        and		ag011.slave_id = sl020.slave_id
+        and		ag011.seq = sl020.seq
+        and		sl020.data_end_status is null
+        and		sl010.app_tp = '04'
+        and		sl010.slave_tp = 'O'
+        and		sl010.org_id = #{orgId}
+        and		ag011.t_value > 0
+        group by ag011.event_aggre_ten_mi,
+        ag011.slave_id
+        order by ag011.event_aggre_ten_mi   ;
+    </select>
+
+    <select id="GetEnergyRstLngVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        with prod_info as (
+        select	ag011.event_aggre_ten_mi,
+        ag011.slave_id ,
+        sum(t_value)	prod_t_value
+        from	tb_s050.tb_s050_aggre011  ag011
+        ,tb_s050.work_day_shift  wds
+        ,tb_s050.tb_s050_slave010  sl010
+        ,tb_s050.tb_s050_slave020  sl020
+        where	ag011.event_aggre_ten_mi <![CDATA[>]]> concat(wds.work_day,  ' ', wds.shift_start_time)
+        and		ag011.event_aggre_ten_mi <![CDATA[<=]]> concat(date_format(sysdate(), '%Y-%m-%d %H:'), wds.to_min , ':00')
+        and		ag011.slave_id = sl010.slave_id
+        and		ag011.slave_id = sl020.slave_id
+        and		ag011.seq = sl020.seq
+        and		sl020.data_end_status is null
+        and		sl010.app_tp = '04'
+        and		sl010.slave_tp = 'O'
+        and		sl010.org_id = #{orgId}
+        and		ag011.t_value > 0
+        group by ag011.event_aggre_ten_mi,
+        ag011.slave_id )
+        select		ag011.event_aggre_ten_mi,						-- 10분 단위 사간
+        t_value  / wds.prod_t_value	as lng_rate ,		-- 10분안위별 연료원단위 값
+        ag011.slave_id,									-- hidden으로 사용할 slave_id
+        ag011.alarm_confirm								-- hidden으로 사용할 alarm 확인여부 (Y - 확인, 그외 미확인) => 마지막 데이타를 확인하여 알림여부 확인
+        from	tb_s050.tb_s050_aggre011  ag011
+        ,prod_info  wds
+        ,tb_s050.tb_s050_slave010  sl010
+        ,tb_s050.tb_s050_slave020  sl020
+        where	ag011.event_aggre_ten_mi = wds.event_aggre_ten_mi
+        and		ag011.slave_id = sl010.slave_id
+        and		ag011.slave_id = sl020.slave_id
+        and		ag011.seq = sl020.seq
+        and		sl020.data_end_status is null
+        and		sl010.app_tp = '04'
+        and		sl010.slave_tp in ('N')
+        and		sl010.org_id = #{orgId}
+        group by ag011.event_aggre_ten_mi,
+        ag011.slave_id,
+        sl010.slave_tp,
+        ag011.alarm_confirm,
+        wds.slave_id
+        order by ag011.event_aggre_ten_mi;
+    </select>
+
+    <select id="GetEnergyRstPwVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        with prod_info as (
+        select	ag011.event_aggre_ten_mi,
+        ag011.slave_id ,
+        sum(t_value)	prod_t_value
+        from	tb_s050.tb_s050_aggre011  ag011
+        ,tb_s050.work_day_shift  wds
+        ,tb_s050.tb_s050_slave010  sl010
+        ,tb_s050.tb_s050_slave020  sl020
+        where	ag011.event_aggre_ten_mi <![CDATA[>]]> concat(wds.work_day,  ' ', wds.shift_start_time)
+        and		ag011.event_aggre_ten_mi <![CDATA[<=]]> concat(date_format(sysdate(), '%Y-%m-%d %H:'), wds.to_min , ':00')
+        and		ag011.slave_id = sl010.slave_id
+        and		ag011.slave_id = sl020.slave_id
+        and		ag011.seq = sl020.seq
+        and		sl020.data_end_status is null
+        and		sl010.app_tp = '04'
+        and		sl010.slave_tp = 'O'
+        and		sl010.org_id = #{orgId}
+        and		ag011.t_value > 0
+        group by ag011.event_aggre_ten_mi,
+        ag011.slave_id )
+        select		ag011.event_aggre_ten_mi,						-- 10분 단위 사간
+        (t_value /1000)  / wds.prod_t_value	as v_rate ,	-- 10분안위별 동력원단위 값
+        ag011.slave_id,									-- hidden으로 사용할 slave_id
+        ag011.alarm_confirm								-- hidden으로 사용할 alarm 확인여부 (Y - 확인, 그외 미확인) => 마지막 데이타를 확인하여 알림여부 확인
+        from	tb_s050.tb_s050_aggre011  ag011
+        ,prod_info  wds
+        ,tb_s050.tb_s050_slave010  sl010
+        ,tb_s050.tb_s050_slave020  sl020
+        where	ag011.event_aggre_ten_mi = wds.event_aggre_ten_mi
+        and		ag011.slave_id = sl010.slave_id
+        and		ag011.slave_id = sl020.slave_id
+        and		ag011.seq = sl020.seq
+        and		sl020.data_end_status is null
+        and		sl010.app_tp = '04'
+        and		sl010.slave_tp in ('V')
+        and		sl010.org_id = #{orgId}
+        group by ag011.event_aggre_ten_mi,
+        ag011.slave_id,
+        sl010.slave_tp,
+        ag011.alarm_confirm,
+        wds.slave_id
+        order by ag011.event_aggre_ten_mi   ;
+    </select>
+
+    <update id="updateWaterAmountVO" parameterType="java.util.Map">
+        update	tb_s050.tb_s050_slave020
+        set		water_rate	= #{waterValue}		-- 화면의 수분율
+        where	slave_id = #{slaveId}			-- slave_id
+        and		seq = #{seq}	;			-- 순번
+    </update>
+
+    <select id="workingGroupInquiryVO" resultType="CamelHashMap">
+        select	work_day, 			-- 작업일자
+        shift_part, 		-- 근문조
+        shift_start_time, 	-- 작업시작시간
+        shift_end_time		-- 작업종료시간
+        from	tb_s050.work_day_shift ;
+    </select>
+
+    <update id="alarmConfirmUpdateVO" parameterType="java.util.Map">
+        UPDATE tb_s050.tb_s050_aggre011
+        SET	LAST_OBJECT_ID = #{userId},
+        UPDATE_TIMESTAMP = sysdate(),
+        UPDATE_PROGRAM_ID = 'S052030011',
+        ALARM_CONFIRM = 'Y'
+        WHERE EVENT_AGGRE_TEN_MI = #{eventAggreTenMi}		-- 마지막 10분 시각
+        AND SLAVE_ID = #{slaveId}					-- hidden의 slave_id
+        AND	ORG_ID = #{orgId}						-- org_id
+        ;
+    </update>
+
+</mapper>

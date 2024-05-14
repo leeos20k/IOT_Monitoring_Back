@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S051030050">
+
+    <update id="UpdateSw" parameterType="java.util.Map">
+        UPDATE tb_s050.tb_s050_sw010
+        SET	LAST_OBJECT_ID = 'NUI',
+            UPDATE_TIMESTAMP = sysdate(),
+            UPDATE_PROGRAM_ID = 's051030050',
+            ORG_ID =  (select org_id from tb_s050.tb_s050_master010 where master_id = #{masterId} and app_tp = '01'),
+            SW_VALUE = #{swValue},
+            EVENT_TM = sysdate()
+        WHERE MASTER_ID = #{masterId}
+        AND SW_NO = #{swNo}
+    </update>
+
+    <select id="PullSwAbTargetVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        select	u010.user_nm,
+                u020.user_id,
+                u010.push_token,
+                m010.master_nm,
+                s010.sw_no
+        from	tb_s050.tb_s050_sw010 	s010
+                inner join tb_s050.tb_s050_master010	m010
+                on	s010.master_id = m010.master_id
+                and	m010.org_id = s010.org_id
+                and	m010.APP_TP = '01'
+                inner join tb_s050.tb_s050_user020  u020
+                on	u020.master_id = m010.master_id
+                inner join tb_s050.tb_s050_user010  u010
+                on	u020.user_id = u010.user_id
+                and	u010.org_id = s010.org_id
+                and	m010.APP_TP = u010.APP_TP
+        where	s010.org_id = #{orgId}
+        and		s010.master_id = #{masterId}
+        and		s010.sw_no = #{swNo}
+        union all
+        select	u010.user_nm,
+                u010.user_id,
+                u010.push_token,
+                (select	master_nm
+                from	tb_s050.tb_s050_master010 m010
+                where	m010.org_id = #{orgId}
+                and		m010.master_id = #{masterId}) master_nm,
+                #{swNo}	sw_no
+        from	tb_s050.tb_s050_user010  u010
+        where	u010.org_id = #{orgId}
+        and		u010.admin_flag = 'Y'
+        and		u010.APP_TP = '01'
+        and		u010.push_token is not null
+    </select>
+
+</mapper>

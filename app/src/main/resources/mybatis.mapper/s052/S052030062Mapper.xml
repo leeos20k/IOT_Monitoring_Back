@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S052030062">
+    <insert id="CreateEnergyMinCollectVO" parameterType="java.util.Map">
+        INSERT INTO tb_s050.tb_s050_aggre010
+                (EVENT_AGGRE_YYMMDDHHMI,
+                SLAVE_ID,
+                SEQ,
+                CREATE_OBJECT_ID,
+                CREATE_TIMESTAMP,
+                CREATE_PROGRAM_ID,
+                LAST_OBJECT_ID,
+                UPDATE_TIMESTAMP,
+                UPDATE_PROGRAM_ID,
+                ORG_ID,
+                R_VALUE,
+                S_VALUE,
+                T_VALUE,
+                L_VALUE)
+        select	date_format(pump_event_tm, '%Y-%m-%d %H:%i'),
+                p010.slave_id,
+                p010.seq,
+                'SYSTEM',
+                sysdate(),
+                'S052030062',
+                'SYSTEM',
+                sysdate(),
+                'S052030062',
+                1,
+                avg(case when s010.slave_tp in ('V', 'O') then p010.r_value
+                        else null
+                    end ),
+                avg(case when s010.slave_tp in ('V', 'O') then p010.s_value
+                        else null
+                    end ),
+                avg(case when s010.slave_tp in ('V', 'O') then p010.t_value
+                        else null
+                    end ),
+                avg(case when s010.slave_tp in ('V', 'O') then null
+                        else p010.l_value
+                    end )
+        from 	tb_s050.tb_s050_pump010  p010 ,
+                tb_s050.tb_s050_slave010  s010
+        where	p010.slave_id = s010.slave_id
+        and		s010.org_id = 1         					-- 로그인 Org_id (1)
+        and		s010.app_tp = '02'							-- 로그인 APP 구분('02')
+        and		pump_event_tm <![CDATA[>=]]> concat( date_sub(curdate(), interval 1 day) ,' ', '00:00:01')
+        and		pump_event_tm <![CDATA[<=]]> concat( curdate() ,' ', '00:00:00')
+        group by date_format(pump_event_tm, '%Y-%m-%d %H:%i'),
+        p010.slave_id,
+        p010.seq
+        ;
+    </insert>
+
+    <insert id="CreateEnergyHourCollectVO" parameterType="java.util.Map">
+        INSERT INTO tb_s050.tb_s050_aggre020
+                (EVENT_AGGRE_YYMMDDHH,
+                SLAVE_ID,
+                SEQ,
+                CREATE_OBJECT_ID,
+                CREATE_TIMESTAMP,
+                CREATE_PROGRAM_ID,
+                LAST_OBJECT_ID,
+                UPDATE_TIMESTAMP,
+                UPDATE_PROGRAM_ID,
+                ORG_ID,
+                R_VALUE,
+                S_VALUE,
+                T_VALUE,
+                L_VALUE)
+        select	date_format(EVENT_AGGRE_YYMMDDHHMI, '%Y-%m-%d %H'),
+                a010.slave_id,
+                a010.seq,
+                'SYSTEM',
+                sysdate(),
+                'S052030062',
+                'SYSTEM',
+                sysdate(),
+                'S052030062',
+                1,
+                avg(case when s010.slave_tp in ('V', 'O') then a010.r_value
+                        else null
+                    end ),
+                avg(case when s010.slave_tp in ('V', 'O') then a010.s_value
+                        else null
+                    end ),
+                avg(case when s010.slave_tp in ('V', 'O') then a010.t_value
+                        else null
+                    end ),
+                avg(case when s010.slave_tp in ('V', 'O') then null
+                        else a010.l_value
+                    end )
+        from	tb_s050.tb_s050_aggre010	a010,
+                tb_s050.tb_s050_slave010 	s010
+        where	a010.slave_id = s010.slave_id
+        and		s010.org_id = 1         					-- 로그인 Org_id (1)
+        and		s010.app_tp = '02'							-- 로그인 APP 구분('02')
+        and		EVENT_AGGRE_YYMMDDHHMI <![CDATA[>=]]> concat( date_sub(curdate(), interval 1 day) ,' ', '00:00')
+        group by 	date_format(EVENT_AGGRE_YYMMDDHHMI, '%Y-%m-%d %H'),
+        a010.slave_id,
+        a010.seq
+        ;
+    </insert>
+
+    <insert id="CreateEnergyDayCollectVO" parameterType="java.util.Map">
+        INSERT INTO tb_s050.tb_s050_aggre030
+                (EVENT_AGGRE_YYMMDD,
+                SLAVE_ID,
+                SEQ,
+                CREATE_OBJECT_ID,
+                CREATE_TIMESTAMP,
+                CREATE_PROGRAM_ID,
+                LAST_OBJECT_ID,
+                UPDATE_TIMESTAMP,
+                UPDATE_PROGRAM_ID,
+                ORG_ID,
+                R_VALUE,
+                S_VALUE,
+                T_VALUE,
+                L_VALUE)
+        select	date_format(a020.EVENT_AGGRE_YYMMDDHH, '%Y-%m-%d'),
+                a020.slave_id,
+                a020.seq,
+                'SYSTEM',
+                sysdate(),
+                'S052030062',
+                'SYSTEM',
+                sysdate(),
+                'S052030062',
+                1,
+                avg(case when s010.slave_tp in ('V', 'O') then a020.r_value
+                        else null
+                    end ),
+                avg(case when s010.slave_tp in ('V', 'O') then a020.s_value
+                        else null
+                    end ),
+                avg(case when s010.slave_tp in ('V', 'O') then a020.t_value
+                        else null
+                    end ),
+                avg(case when s010.slave_tp in ('V', 'O') then null
+                        else a020.l_value
+                    end )
+        from	tb_s050.tb_s050_aggre020	a020,
+                tb_s050.tb_s050_slave010 	s010
+        where	a020.slave_id = s010.slave_id
+        and		s010.org_id = 1         					-- 로그인 Org_id (1)
+        and		s010.app_tp = '02'							-- 로그인 APP 구분('02')
+        and		a020.EVENT_AGGRE_YYMMDDHH <![CDATA[>=]]> concat( date_sub(curdate(), interval 1 day) ,' ', '00')
+        group by 	date_format(a020.EVENT_AGGRE_YYMMDDHH, '%Y-%m-%d'),
+                    a020.slave_id,
+                    a020.seq ;
+    </insert>
+
+    <delete id="DeletePump010VO">
+        delete from	tb_s050.tb_s050_pump010
+        where	pump_event_tm <![CDATA[<=]]> date_sub(sysdate(), interval 1 MONTH) ;
+    </delete>
+
+    <delete id="DeleteSlave030VO">
+        delete from	tb_s050.tb_s050_slave030
+        where	ALARM_END_TM <![CDATA[<=]]> date_sub(sysdate(), interval 1 MONTH) ;
+    </delete>
+
+</mapper>

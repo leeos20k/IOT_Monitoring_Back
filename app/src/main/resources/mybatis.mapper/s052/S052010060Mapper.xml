@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S052010060">
+    <select id="GetSlaveDetailHeadVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        -- Slave 상세조회 head VO
+        select	s010.slave_id,			-- hidden slave_id
+                s010.slave_nm,			-- slave명
+                s010.slave_tp,			-- 구분
+                s010.comments			-- 비고
+        from	tb_s050.tb_s050_slave010  s010
+        where 	s010.slave_id = #{slaveId}
+    </select>
+
+    <select id="GetSlaveDetailLineVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        -- Slave 상세조회 Seq VO
+        select	s020.slave_id,			-- hidden slave_id
+                s020.seq,				-- 순번
+                s020.use_flag,			-- 사용여부
+                s020.ALARM_MAX_VALUE,	-- Max 값
+                s020.ALARM_MIN_VALUE,	-- min 값
+                s020.ALARM_TM,			-- 지속시간
+                s020.ATTACH_FILE,		-- 첨부파일
+                s020.ATTACH_FILE_NM,	-- 첨부파일 명
+                s020.slave_detail_nm,	-- slave명
+                s020.slave_detail_id,	-- slave ID
+                s020.ALARM_MAX_VALUE,				-- HH 값
+                s020.ALARM_MIN_VALUE,				-- LL 값
+                s020.ALARM_TM,						-- 감지시간
+                ifnull(s020.ALARM_CONFIRM_FLAG, 'N')	as ALARM_CONFIRM_FLAG,			-- 경고알림 여부
+                s020.ALARM_MAX_L_VALUE,				-- HL 값
+                s020.ALARM_MIN_H_VALUE,				-- LH 값
+                s020.SLAVE_BASE_VALUE,				-- 기준값
+                s020.PHASE_UNB_RATE				-- 상불평형
+        from	tb_s050.tb_s050_slave020  s020
+        where 	s020.slave_id = #{slaveId}
+    </select>
+
+    <insert id="InsertSlaveHeader" parameterType="java.util.Map">
+        <!-- ① slave Header Insert -->
+        INSERT INTO tb_s050.tb_s050_slave010
+                (SLAVE_ID,
+                CREATE_OBJECT_ID,
+                CREATE_TIMESTAMP,
+                CREATE_PROGRAM_ID,
+                LAST_OBJECT_ID,
+                UPDATE_TIMESTAMP,
+                UPDATE_PROGRAM_ID,
+                ORG_ID,
+                SLAVE_NM,
+                SLAVE_TP,
+                COMMENTS,
+                APP_TP)
+        VALUES
+                (nextval(tb_s050.sq_s050_slave010),
+                #{userId},			-- 로그인 userID
+                sysdate(),
+                'S052010060',
+                #{userId},			-- 로그인 userID
+                sysdate(),
+                'S052010060',
+                #{orgId},			-- org_id
+                #{slaveNm},			-- slave 명
+                #{slaveTp},			-- 화면의 구분
+                #{comments},        -- 화면의 비고
+                '02')		        -- 로그인 정보의 APP_TP
+    </insert>
+
+    <insert id="InsertSlaveLine" parameterType="java.util.Map">
+        <!-- ② slave Line Insert -->
+        INSERT INTO tb_s050.tb_s050_slave020
+                (SLAVE_ID,
+                SEQ,
+                CREATE_OBJECT_ID,
+                CREATE_TIMESTAMP,
+                CREATE_PROGRAM_ID,
+                LAST_OBJECT_ID,
+                UPDATE_TIMESTAMP,
+                UPDATE_PROGRAM_ID,
+                ALARM_MAX_VALUE,
+                ALARM_MIN_VALUE,
+                ALARM_TM,
+                ATTACH_FILE,
+                ATTACH_FILE_NM,
+                USE_FLAG,
+                SLAVE_DETAIL_NM,
+                SLAVE_DETAIL_ID,
+                ALARM_MAX_L_VALUE,
+                ALARM_MIN_H_VALUE,
+                SLAVE_BASE_VALUE,
+                PHASE_UNB_RATE,
+                INSTALL_DATE,
+                SLAVE_OP_TM.
+                SLAVE_BASE_DAY.
+                SLAVE_BASE_TM)
+        VALUES
+                (lastval(tb_s050.sq_s050_slave010),
+                #{seq},			        -- 화면의 순번
+                #{userId},			    -- 로그인 userID
+                sysdate(),
+                'S052010060',
+                #{userId},			    -- 로그인 userID
+                sysdate(),
+                'S052010060',
+                #{alarmMaxValue},		-- 화면의 HH
+                #{alarmMinValue},		-- 화면의 LL
+                #{alarmTm},			    -- 화면의 지속시간
+                #{attachFile},			-- 첨부파일
+                #{attachFileNm},		-- 화면의 첨부파일 명
+                #{useFlag},			    -- 화면의 사용여부
+                #{slaveDetailNm},		-- 화면의 machine 명
+                #{slaveDetailId},		-- 화면의 Unit ID
+                #{alarmMaxLValue},		-- 화면의 HL 값
+                #{alarmMinHValue},		-- 화면의 LH 값
+                #{slaveBaseValue},		-- 화면의 고장유형 기준갑
+                #{phaseUnbRate},		-- 화면의 고장유형 상불형형
+                #{installDate},		    -- 화면의 설치일자
+                #{slaveOpTm},		    -- 화면의 총가동시간
+                #{slaveBaseDay},		-- 화면의 기준 적용일자
+                #{slaveBaseTm})		    -- 화면의 기준 가동시간
+    </insert>
+
+    <delete id="DeleteSlaveSeq" parameterType="java.util.Map">
+        -- ① Slave Seq 삭제
+        delete from tb_s050.tb_s050_slave020
+        where  slave_id = #{slaveId}
+    </delete>
+
+    <insert id="UpdateSlaveLine" parameterType="java.util.Map">
+        -- ② insert slave Line
+        INSERT INTO tb_s050.tb_s050_slave020
+                (SLAVE_ID,
+                SEQ,
+                CREATE_OBJECT_ID,
+                CREATE_TIMESTAMP,
+                CREATE_PROGRAM_ID,
+                LAST_OBJECT_ID,
+                UPDATE_TIMESTAMP,
+                UPDATE_PROGRAM_ID,
+                ALARM_MAX_VALUE,
+                ALARM_MIN_VALUE,
+                ALARM_TM,
+                ATTACH_FILE,
+                ATTACH_FILE_NM,
+                USE_FLAG,
+                SLAVE_DETAIL_NM,
+                SLAVE_DETAIL_ID,
+                ALARM_MAX_L_VALUE,
+                ALARM_MIN_H_VALUE,
+                SLAVE_BASE_VALUE,
+                PHASE_UNB_RATE,
+                INSTALL_DATE,
+                SLAVE_OP_TM.
+                SLAVE_BASE_DAY.
+                SLAVE_BASE_TM)
+        VALUES
+                (#{slaveId},		-- 선택한 slave_id
+                #{seq},			-- 화면의 순번
+                #{userId},			-- 로그인 userID
+                sysdate(),
+                'S052010060',
+                #{userId},			-- 로그인 userID
+                sysdate(),
+                'S052010060',
+                #{alarmMaxValue},			-- 화면의 MAX
+                #{alarmMinValue},			-- 화면의 MIN
+                #{alarmTm},			-- 화면의 지속시간
+                #{attachFile},			-- 첨부파일
+                #{attachFileNm},			-- 화며의 첨부파일 명
+                #{useFlag},
+                #{slaveDetailNm},
+                #{slaveDetailId}),		-- 화면의 사용여부
+                #{alarmMaxLValue},		-- 화면의 HL 값
+                #{alarmMinHValue},		-- 화면의 LH 값
+                #{slaveBaseValue},		-- 화면의 고장유형 기준갑
+                #{phaseUnbRate},		-- 화면의 고장유형 상불형형
+                #{installDate},		-- 화면의 설치일자
+                #{slaveOpTM},		-- 화면의 총가동시간
+                #{slaveBaseDay},		-- 화면의 기준 적용일자
+                #{slaveBaseTm})		-- 화면의 기준 가동시간
+    </insert>
+
+    <update id="UpdateSlaveHead" parameterType="java.util.Map">
+        -- ③ update Slave Header
+        UPDATE tb_s050.tb_s050_slave010
+        SET	LAST_OBJECT_ID = #{userId},	    -- 로그인 userID
+            UPDATE_TIMESTAMP = sysdate(),
+            UPDATE_PROGRAM_ID = 'S052010060',
+            SLAVE_NM = #{slaveNm},			-- slave 명
+            SLAVE_TP = #{slaveTp},			-- 화면의 구분
+            COMMENTS = #{comments},			-- 화면의 비고
+            APP_TP = #{appTp}				-- 로그인 정보의 APP_TP
+        WHERE SLAVE_ID = #{slaveId} 		-- 선택한 slave_id
+    </update>
+
+    <select id="selectSlaveTp" parameterType="java.util.Map" resultType="CamelHashMap">
+        SELECT	C010.CD_V_NM,
+                C010.CD_V
+        FROM 	tb_s050.tb_s050_cd010 	C010
+        WHERE	C010.CD_TP = 'SLAVE_TP'
+        AND	 	C010.ORG_ID = '1'
+        AND		C010.CATEGORY = '000'
+        AND		C010.LANG = 'KOR'
+    </select>
+</mapper>

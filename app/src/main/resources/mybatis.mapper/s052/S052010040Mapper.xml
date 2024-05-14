@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S052010040">
+    <select id="GetMasterDetailHead" parameterType="java.util.Map" resultType="CamelHashMap">
+        select	m010.master_id,
+        m010.master_nm,
+        m010.master_ip,
+        m010.master_port_no,
+        m010.comments,
+        m010.coll_interval
+        from	tb_s050.tb_s050_master010   as m010
+        inner join tb_s050.tb_s050_org020  as org020
+        on	org020.org_id = m010.org_id
+        and	org020.app_tp = m010.app_tp
+        where	m010.master_id = #{masterId}
+        ;
+    </select>
+
+    <select id="GetMasterDetailLine" parameterType="java.util.Map" resultType="CamelHashMap">
+        with slave_master_info as (
+        SELECT	slave_id,
+        s010.slave_tp,
+        (select	m020.master_id
+        from	tb_s050.tb_s050_master020  m020
+        where	m020.slave_id = s010.slave_id)  master_id
+        FROM 	tb_s050.tb_s050_slave010  s010   )
+        select	s010.slave_id,
+        s010.slave_nm,
+        s010.slave_tp,
+        (select	case when m020.master_id is null then 1
+        when m020.master_id is not null and m020.master_id = #{masterId}  then 2
+        when m020.master_id is not null and  m020.master_id != #{masterId}  then 3
+        end as choice_flag
+        from	slave_master_info  m020
+        where	m020.slave_tp = s010.slave_tp
+        and		m020.slave_id = s010.slave_id ) as choice_flag
+        from	tb_s050.tb_s050_slave010  s010
+        left outer join tb_s050.tb_s050_master020  m020
+        on m020.slave_id = s010.slave_id
+        where	s010.org_id = #{orgId}
+        and		s010.app_tp = #{appTp} ;
+
+    </select>
+
+    <insert id="InsertMaster" parameterType="java.util.Map">
+        INSERT INTO tb_s050.tb_s050_master010
+        (MASTER_ID,
+        CREATE_OBJECT_ID,
+        CREATE_TIMESTAMP,
+        CREATE_PROGRAM_ID,
+        LAST_OBJECT_ID,
+        UPDATE_TIMESTAMP,
+        UPDATE_PROGRAM_ID,
+        ORG_ID,
+        MASTER_NM,
+        MASTER_IP,
+        MASTER_PORT_NO,
+        APP_TP,
+        COMMENTS,
+        COLL_INTERVAL,
+        SOCKET_MTH,
+        RECONNECT,
+        TIMEOUT)
+        VALUES
+        (nextval(tb_s050.sq_s050_master010),
+        #{userId},
+        sysdate(),
+        'S052010040',
+        #{userId},
+        sysdate(),
+        'S052010040',
+        #{orgId},
+        #{masterNm},
+        #{masterIp},
+        #{masterPortNo},
+        #{appTp},
+        #{comments},
+        #{collInterval},
+        #{socketMth},
+        #{reconnect},
+        #{timeout});
+    </insert>
+
+    <insert id="InsertSlave" parameterType="java.util.Map">
+        INSERT INTO tb_s050.tb_s050_master020
+        (MASTER_ID,
+        SLAVE_ID,
+        CREATE_OBJECT_ID,
+        CREATE_TIMESTAMP,
+        CREATE_PROGRAM_ID,
+        LAST_OBJECT_ID,
+        UPDATE_TIMESTAMP,
+        UPDATE_PROGRAM_ID,
+        SEQ)
+        VALUES
+        (lastval(tb_s050.sq_s050_master010),
+        #{slaveId},
+        #{userId},
+        sysdate(),
+        'S052010040',
+        #{userId},
+        sysdate(),
+        'S052010040',
+        #{seq});
+    </insert>
+
+    <delete id="DeleteSlave" parameterType="java.util.Map">
+        DELETE FROM tb_s050.tb_s050_master020
+        WHERE MASTER_ID = #{masterId}
+    </delete>
+
+    <insert id="UpdateSlave" parameterType="java.util.Map">
+        INSERT INTO tb_s050.tb_s050_master020
+        (MASTER_ID,
+        SLAVE_ID,
+        CREATE_OBJECT_ID,
+        CREATE_TIMESTAMP,
+        CREATE_PROGRAM_ID,
+        LAST_OBJECT_ID,
+        UPDATE_TIMESTAMP,
+        UPDATE_PROGRAM_ID,
+        SEQ)
+        VALUES
+        (#{masterId},
+        #{slaveId},
+        #{userId},
+        sysdate(),
+        'S052010040',
+        #{userId},
+        sysdate(),
+        'S052010040',
+        #{seq});
+    </insert>
+
+    <update id="UpdateMaster" parameterType="java.util.Map">
+        UPDATE tb_s050.tb_s050_master010
+        SET	LAST_OBJECT_ID = #{userId} ,
+        UPDATE_TIMESTAMP = sysdate(),
+        UPDATE_PROGRAM_ID = 'S052010040',
+        MASTER_NM = #{masterNm},
+        MASTER_IP = #{masterIp},
+        MASTER_PORT_NO = #{masterPortNo},
+        COMMENTS = #{comments},
+        COLL_INTERVAL = #{collInterval}
+        WHERE MASTER_ID = #{masterId} ;
+    </update>
+</mapper>
+

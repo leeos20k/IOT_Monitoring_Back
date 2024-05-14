@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S052030012">
+    <select id="GetEnergyShiftVO" resultType="CamelHashMap">
+        select	'전체' as CD_V_NM,  			-- 출력 작업근
+        '07:00:01/07:00:00' as CD_V  	-- hidden 으로 사용할 시작/종료시간
+        from	dual
+        union all
+        select	'1조' as CD_V_NM,  			-- 출력 작업근
+        '07:00:01/15:00:00' as CD_V  	-- hidden 으로 사용할 시작/종료시간
+        from	dual
+        union all
+        select	'2조' as CD_V_NM,  			-- 출력 작업근
+        '15:00:01/23:00:00' as CD_V  	-- hidden 으로 사용할 시작/종료시간
+        from	dual
+        union all
+        select	'3조' as CD_V_NM,  			-- 출력 작업근
+        '23:00:01/07:00:00' as CD_V  	-- hidden 으로 사용할 시작/종료시간
+        from	dual ;
+    </select>
+
+    <select id="GetEnergyProdListPlanVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        with plan_info as (
+        select	sum(p010.val)	val
+        ,p010.energe_plan_tp
+        from	tb_s050.tb_s050_plan010 p010
+        where	p010.org_id = #{orgId}
+        and		p010.plan_year <![CDATA[>=]]> concat(date_format(#{fromTime}, '%Y-%m'), '-01 07:00:01')
+        and		p010.plan_year <![CDATA[<=]]> concat(date_format(#{toTime}, '%Y-%m'), '-01 07:00:01')
+        group by p010.energe_plan_tp )
+        select 	round(max(case when energe_plan_tp = 11 then val end)  / max(case when energe_plan_tp = 21 then val end), 1)  as prod_rate,		-- 생산성
+        round(max(case when energe_plan_tp = 41 then val end)  / max(case when energe_plan_tp = 11 then val end), 2)  as lng_rate,		-- lng 원단위
+        round(max(case when energe_plan_tp = 31 then val end)  / max(case when energe_plan_tp = 11 then val end), 1)  as vol_rate		-- 동력 원단위
+        from 	plan_info;
+    </select>
+
+    <select id="GetEnergyProdListRstVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        with   target_row_dt as (
+        select  distinct ag011.EVENT_AGGRE_TEN_MI,
+        s010.org_id
+        from    tb_s050.tb_s050_aggre011   ag011,
+        tb_s050.tb_s050_slave010   s010
+        where   s010.org_id = #{orgId}
+        and      ag011.event_aggre_ten_mi <![CDATA[>=]]> #{fromTime}      -- ex) '2024-04-04 07:00:01'
+        and      ag011.event_aggre_ten_mi <![CDATA[<=]]> #{toTime}      -- ex) '2024-04-05 15:00:00'
+        and      s010.app_tp = '04'
+        and      s010.slave_id = ag011.slave_id
+        and      s010.org_id = ag011.org_id
+        and      ag011.t_value <![CDATA[>]]> 0
+        and      s010.slave_tp = 'O' ) ,
+        tm_value as (
+        select   case when ag011.EVENT_AGGRE_TEN_MI <![CDATA[>]]> concat(date_format(ag011.EVENT_AGGRE_TEN_MI, '%Y-%m-%d'),' 07:00:00')
+        and ag011.EVENT_AGGRE_TEN_MI <![CDATA[<=]]> concat(date_format(ag011.EVENT_AGGRE_TEN_MI, '%Y-%m-%d'),' 15:00:00')
+        then 1
+        when ag011.EVENT_AGGRE_TEN_MI <![CDATA[>]]> concat(date_format(ag011.EVENT_AGGRE_TEN_MI, '%Y-%m-%d'),' 15:00:00')
+        and ag011.EVENT_AGGRE_TEN_MI <![CDATA[<=]]> concat(date_format(ag011.EVENT_AGGRE_TEN_MI, '%Y-%m-%d'),' 23:00:00')
+        then 2
+        else 3
+        end as shift_part,
+        case when ag011.EVENT_AGGRE_TEN_MI <![CDATA[>=]]> concat(date_format(ag011.EVENT_AGGRE_TEN_MI, '%Y-%m-%d'),' 00:00:00')
+        and ag011.EVENT_AGGRE_TEN_MI <![CDATA[<=]]> concat(date_format(ag011.EVENT_AGGRE_TEN_MI, '%Y-%m-%d'),' 07:00:00')
+        then date_format( date_sub(ag011.EVENT_AGGRE_TEN_MI, interval 1 day), '%Y-%m-%d')
+        else date_format( ag011.EVENT_AGGRE_TEN_MI, '%Y-%m-%d')
+        end as shift_day,
+        ag011.EVENT_AGGRE_TEN_MI,
+        ag011.slave_id,
+        s010.slave_tp,
+        sum(ag011.t_value),
+        case when slave_tp = 'V' then sum(ag011.t_value)/1000
+        else   sum(ag011.t_value)
+        end as t_value
+        from   tb_s050.tb_s050_aggre011   ag011,
+        tb_s050.tb_s050_slave010   s010,
+        target_row_dt trd
+        where   ag011.EVENT_AGGRE_TEN_MI = trd.EVENT_AGGRE_TEN_MI
+        and      s010.slave_id =  ag011.slave_id
+        group by ag011.EVENT_AGGRE_TEN_MI,
+        ag011.slave_id,
+        s010.slave_tp ),
+        shift_value as (
+        select   shift_part   as shift_part,
+        count(slave_id) op_tm,
+        slave_tp,
+        sum(t_value)   t_value
+        from   tm_value tv
+        group by shift_part   ,
+        slave_id,
+        slave_tp  ),
+        shift_info as (
+        select   shift_part   ,
+        max(case when slave_tp ='O' then t_value end)   as  prod_qty,
+        max(case when slave_tp ='O' then op_tm end)/6    as  op_tm,
+        max(case when slave_tp ='N' then t_value end) as   lng_qty,
+        max(case when slave_tp ='V' then t_value end) as volt_qty,
+        max(case when slave_tp ='O' then t_value end) / (max(case when slave_tp ='O' then op_tm end)/6)   as prod_rate,
+        max(case when slave_tp ='N' then t_value end) / max(case when slave_tp ='O' then t_value end)   as lng_rate,
+        max(case when slave_tp ='V' then t_value end) / max(case when slave_tp ='O' then t_value end)  as volt_rate
+        from   shift_value
+        group by  shift_part )
+        select   round(sum(prod_qty) / sum(op_tm), 1)   as total_prod_rate,      -- total_실적_생산성
+        round(sum(lng_qty) / sum(prod_qty), 2)   as total_lng_rate ,      -- total_실적_lng원단위
+        round(sum(volt_qty) / sum(prod_qty), 1)   as total_volt_rate,      -- total_실적_동력원단위
+        round(max(case when shift_part = 1 then prod_qty end) / max(case when shift_part = 1 then op_tm end), 1)    as fst_prod_rate,   -- 1조_실적_생산성
+        round(max(case when shift_part = 1 then lng_qty end) / max(case when shift_part = 1 then prod_qty end), 2)    as fst_lng_rate,   -- 1조_실적_lng_원단위
+        round(max(case when shift_part = 1 then volt_qty end) / max(case when shift_part = 1 then prod_qty end), 1)    as fst_volt_rate,   -- 1조_실적_동력_원단위
+        round(max(case when shift_part = 2 then prod_qty end) / max(case when shift_part = 2 then op_tm end), 1)    as snd_prod_rate,   -- 2조_실적_생산성
+        round(max(case when shift_part = 2 then lng_qty end) / max(case when shift_part = 2 then prod_qty end), 2)    as snd_lng_rate,   -- 2조_실적_lng_원단위
+        round(max(case when shift_part = 2 then volt_qty end) / max(case when shift_part = 2 then prod_qty end), 1)    as snd_volt_rate,   -- 2조_실적_동력_원단위
+        round(max(case when shift_part = 3 then prod_qty end) / max(case when shift_part = 3 then op_tm end), 1)    as thd_prod_rate,   -- 3조_실적_생산성
+        round(max(case when shift_part = 3 then lng_qty end) / max(case when shift_part = 3 then prod_qty end), 2)    as thd_lng_rate,   -- 3조_실적_lng_원단위
+        round(max(case when shift_part = 3 then volt_qty end) / max(case when shift_part = 3 then prod_qty end), 1)    as thd_volt_rate   -- 3조_실적_동력_원단위
+        from   shift_info ;
+    </select>
+
+    <select id="GetEnergyProdExcelVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        with	target_row_dt as (
+        select  distinct ag011.EVENT_AGGRE_TEN_MI,
+        s010.org_id
+        from 	tb_s050.tb_s050_aggre011   ag011,
+        tb_s050.tb_s050_slave010	s010
+        where	s010.org_id = #{orgId}
+        and		ag011.event_aggre_ten_mi <![CDATA[>=]]> #{fromTime}   	-- ex) '2024-03-13 07:00:01'
+        and		ag011.event_aggre_ten_mi <![CDATA[<=]]> #{toTime}		-- ex) '2024-03-14 17:00:00'
+        and		s010.app_tp = '04'
+        and		s010.slave_id = ag011.slave_id
+        and		s010.org_id = ag011.org_id
+        and		ag011.t_value <![CDATA[>]]> 0
+        and		s010.slave_tp = 'O' ),
+        tm_value as (
+        select	case when ag011.EVENT_AGGRE_TEN_MI <![CDATA[>]]> concat(date_format(ag011.EVENT_AGGRE_TEN_MI, '%Y-%m-%d'),' 07:00:00')
+        and ag011.EVENT_AGGRE_TEN_MI <![CDATA[<=]]> concat(date_format(ag011.EVENT_AGGRE_TEN_MI, '%Y-%m-%d'),' 15:00:00')
+        then 1
+        when ag011.EVENT_AGGRE_TEN_MI <![CDATA[>]]> concat(date_format(ag011.EVENT_AGGRE_TEN_MI, '%Y-%m-%d'),' 15:00:00')
+        and ag011.EVENT_AGGRE_TEN_MI <![CDATA[<=]]> concat(date_format(ag011.EVENT_AGGRE_TEN_MI, '%Y-%m-%d'),' 23:00:00')
+        then 2
+        else 3
+        end as shift_part,
+        case when ag011.EVENT_AGGRE_TEN_MI <![CDATA[>=]]> concat(date_format(ag011.EVENT_AGGRE_TEN_MI, '%Y-%m-%d'),' 00:00:00')
+        and ag011.EVENT_AGGRE_TEN_MI <![CDATA[<=]]> concat(date_format(ag011.EVENT_AGGRE_TEN_MI, '%Y-%m-%d'),' 07:00:00')
+        then date_format( date_sub(ag011.EVENT_AGGRE_TEN_MI, interval 1 day), '%Y-%m-%d')
+        else date_format( ag011.EVENT_AGGRE_TEN_MI, '%Y-%m-%d')
+        end as shift_day,
+        ag011.EVENT_AGGRE_TEN_MI,
+        ag011.slave_id,
+        s010.slave_tp,
+        sum(ag011.t_value),
+        case when slave_tp = 'V' then sum(ag011.t_value)/1000
+        else	sum(ag011.t_value)
+        end as t_value
+        from	tb_s050.tb_s050_aggre011   ag011,
+        tb_s050.tb_s050_slave010	s010,
+        target_row_dt trd
+        where	ag011.EVENT_AGGRE_TEN_MI = trd.EVENT_AGGRE_TEN_MI
+        and		s010.slave_id =  ag011.slave_id
+        group by ag011.EVENT_AGGRE_TEN_MI,
+        ag011.slave_id,
+        s010.slave_tp  ),
+        shift_value as (
+        select	concat(shift_day, '  ', shift_part, '조')	as shift_part,
+        count(slave_id) op_tm,
+        slave_tp,
+        sum(t_value)	t_value
+        from	tm_value tv
+        group by concat(shift_day, '  ', shift_part, '조')	,
+        slave_id,
+        slave_tp  )
+        select	shift_part	as "작업조",
+        round(max(case when slave_tp ='O' then t_value end), 1)	as  "생산량",
+        round((max(case when slave_tp ='O' then op_tm end)/6), 1) as  "가동시간",
+        round(max(case when slave_tp ='N' then t_value end), 2) as	"LNG량",
+        round(max(case when slave_tp ='V' then t_value end), 1) as "전력량",
+        round(max(case when slave_tp ='O' then t_value end) / (max(case when slave_tp ='O' then op_tm end)/6), 1)	as "생산성",
+        round(max(case when slave_tp ='N' then t_value end) / max(case when slave_tp ='O' then t_value end), 2)	as "LNG원단위",
+        round(max(case when slave_tp ='V' then t_value end) / max(case when slave_tp ='O' then t_value end), 1)  as "전력원단위"
+        from	shift_value
+        group by  shift_part;
+    </select>
+
+
+</mapper>

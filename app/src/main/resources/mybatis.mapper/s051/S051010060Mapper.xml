@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S051010060">
+    <select id="selectGetMasterDetail" parameterType="java.util.Map" resultType="CamelHashMap">
+        select m010.master_id,
+        m010.master_nm,
+        m010.master_ip,
+        m010.MASTER_PORT_NO ,
+        m010.SW_CNT
+        from tb_s050.tb_s050_master010 m010
+        where m010.master_id = #{masterId}
+        and m010.org_id = #{orgId}
+        AND		m010.app_tp = '01'
+    </select>
+
+    <insert id="insertMaster" parameterType="java.util.Map">
+        INSERT INTO tb_s050.tb_s050_master010
+                    (MASTER_ID,
+                    CREATE_OBJECT_ID,
+                    CREATE_TIMESTAMP,
+                    CREATE_PROGRAM_ID,
+                    LAST_OBJECT_ID,
+                    UPDATE_TIMESTAMP,
+                    UPDATE_PROGRAM_ID,
+                    ORG_ID,
+                    MASTER_NM,
+                    MASTER_IP,
+                    MASTER_PORT_NO,
+                    SW_CNT,
+                    APP_TP)
+        VALUES
+        (nextval(tb_s050.sq_s050_master010),
+        #{userId},					-- 화면에서 로그인한 hidden user_id
+        sysdate(),
+        's051010060',
+        #{userId},					-- 화면에서 로그인한 hidden user_id
+        sysdate(),
+        's051010060',
+        #{orgId},					-- 화면에서 선택한 hidden user의 org_id
+        #{masterNm},					-- 화면에서 입력한 마스터명
+        #{masterIp},					-- 화면에서 입력한 IP번호
+        #{masterPortNo},					-- 화면에서 입력한 Port번호
+        #{swCnt},					-- 화면에서 입력한 스위치갯수
+        '01')       				-- app 구분값 (01 - Pull Cord SW값)
+    </insert>
+
+    <update id="updateMaster" parameterType="java.util.Map">
+        UPDATE tb_s050.tb_s050_master010
+        SET	LAST_OBJECT_ID = #{userId},		-- 화면에서 로그인한 hidden user_id
+            UPDATE_TIMESTAMP = sysdate(),
+            UPDATE_PROGRAM_ID = 's051010060',
+            ORG_ID = #{orgId},				-- 화면에서 선택한 hidden user의 org_id
+            MASTER_NM = #{masterNm},				-- 화면에서 입력한 마스터명
+            MASTER_IP = #{masterIp},				-- 화면에서 입력한 IP번호
+            MASTER_PORT_NO = #{masterPortNo},		-- 화면에서 입력한 Port번호
+            SW_CNT = #{swCnt}					-- 화면에서 입력한 스위치갯수
+        WHERE MASTER_ID = #{masterId}			-- 화면에서 선택한 hidden Master_id
+        AND		app_tp = '01'
+    </update>
+
+    <delete id="deleteMaster" parameterType="java.util.Map" >
+        delete from tb_s050.tb_s050_sw010
+        where	master_id = #{masterId}			-- 화면에서 선택한 master_id
+        and		org_id = #{orgId}			-- 화면에서 선택한 hidden user의 org_id
+    </delete>
+
+    <insert id="insertSwitch" parameterType="java.util.Map" >
+        INSERT INTO tb_s050.tb_s050_sw010
+        (MASTER_ID,
+        SW_NO,
+        CREATE_OBJECT_ID,
+        CREATE_TIMESTAMP,
+        CREATE_PROGRAM_ID,
+        LAST_OBJECT_ID,
+        UPDATE_TIMESTAMP,
+        UPDATE_PROGRAM_ID,
+        ORG_ID,
+        SW_VALUE)
+        VALUES
+        (
+        <choose>
+            <when test='masterId != null and masterId != ""'>
+                #{masterId},
+            </when>
+            <otherwise>
+                lastval(tb_s050.sq_s050_master010),
+            </otherwise>
+        </choose>
+        #{swNo},				-- 화면의 등록한 순서대로 sw번호 입력
+        #{userId},				-- 화면의 로그인한 user_id
+        sysdate(),
+        's051010060',
+        #{userId},				-- 화면의 로그인한 user_id
+        sysdate(),
+        's051010060',
+        #{orgId},				-- 화면에서 선택한 hidden user의 org_id
+        1)
+    </insert>
+</mapper>

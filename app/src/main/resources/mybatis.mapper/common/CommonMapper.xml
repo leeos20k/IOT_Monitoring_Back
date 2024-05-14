@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="COMMON">
+
+    <sql id="pagingTop">
+        <if test='curPage > 0'>
+            SELECT /*페이징 조회*/
+            T3.*
+            FROM (
+            SELECT /*전체row*/
+            @rownum:=@rownum+1 AS PAGE_SEQ, T2.*
+            FROM (
+            SELECT T1.*, COUNT(*) OVER(PARTITION BY '1') TOT_CNT
+            FROM (
+        </if>
+    </sql>
+
+    <sql id="pagingBottom">
+        <if test='curPage > 0'>
+            ) T1
+            order by (
+            <choose>
+                <when test="column==null || column==''">1</when>
+                <otherwise>${column}</otherwise>
+            </choose>
+            ) ${order}
+            ) T2, (SELECT @rownum:=0) AS R
+            ) T3
+            WHERE T3.PAGE_SEQ <![CDATA[>]]> #{limit} * (#{curPage}-1)  /*시작페이지행번호 = 한페이지 row수 * (현재페이지번호-1) */
+            AND T3.PAGE_SEQ <![CDATA[<=]]> (#{limit} * #{curPage}) /* 한페이지 row수 * 현재페이지번호 */
+        </if>
+    </sql>
+
+    <select id="GetTreeMenuVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        <!-- 설비 Tree 구조 메뉴 조회 -->
+        select	org010.org_nm,
+                org010.org_id	as self_id,
+                org010.org_id	as parent_id,
+                0 as lev
+        from 	tb_s050.tb_s050_org010  org010
+        where	org010.org_id = #{orgId}
+        union all
+        select	m010.master_nm,
+                m010.master_id	as self_id,
+                m010.org_id	as parent_id,
+                1 as lev
+        from	tb_s050.tb_s050_master010	m010
+        where	m010.org_id = #{orgId}
+        and		m010.app_tp = '02'
+        union all
+        select	s010.slave_nm,
+                s010.slave_id	as self_id,
+                m020.master_id	as parent_id,
+                2 as lev
+        from	tb_s050.tb_s050_master020	m020
+        inner join tb_s050.tb_s050_slave010	s010
+        on	s010.slave_id	= m020.slave_id
+        where	s010.app_tp = '02'
+        and		s010.org_id = #{orgId}
+        union all
+        select	s020.slave_detail_nm,
+                concat(s010.slave_id, '-', s020.seq) as self_id,
+                s010.slave_id	as parent_id,
+                3 as lev
+        from	tb_s050.tb_s050_slave010	s010
+        inner join tb_s050.tb_s050_slave020	s020
+        on	s010.slave_id	= s020.slave_id
+        where	s010.app_tp = '02'
+        and		s010.org_id = #{orgId}
+    </select>
+
+    <select id="GetTreeMenuAlarmCntVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        <!-- 설비 Tree 구조 Level 알람 갯수 -->
+        with row_data as (
+            select	case when s020.alarm_tp is null then 0 else 1 end  cnt,
+                    m020.master_id,
+                    s010.slave_id,
+                    s010.org_id,
+                    concat(s020.slave_id,'-', s020.seq) as seq
+            from	tb_s050.tb_s050_slave010  s010
+            inner join tb_s050.tb_s050_slave020  s020
+            on	s010.slave_id = s020.slave_id
+            inner join tb_s050.tb_s050_master020  m020
+            on	s010.slave_id = m020.slave_id
+            where	s010.app_tp  = '02'
+            and		s010.org_id  = #{orgId}
+        )
+        select	sum(cnt) as gr_cnt,			-- 알람 갯수
+                master_id	as self_id,		-- 자가 ID
+                org_id	as parent_id,		-- 상위 ID
+                1	as lev,					-- Level
+                null 	as	extra_column	-- 여분항목
+        from	row_data
+        where	cnt > 0
+        group by master_id,
+                 org_id
+        union all
+        select	sum(cnt) as gr_cnt,
+                slave_id	as self_id,
+                master_id	as parent_id,
+                2	as lev,
+                null 	as	extra_column
+        from	row_data
+        where	cnt > 0
+        group by master_id,
+                 slave_id
+        union all
+        select	sum(cnt) as gr_cnt,
+                seq	as self_id,
+                slave_id	as parent_id,
+                3	as lev,
+                master_id 	as	extra_column
+        from	row_data
+        where	cnt > 0
+        group by master_id,
+                 seq
+    </select>
+
+    <select id="GetTreeMenuFixCntVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        <!-- 설비 Tree 구조 점검갯수 갯수 조회 -->
+        with row_data as (
+            select	case when s020.FIX_FLAG is null then 0 else 1 end  fix_cnt,
+                    m020.master_id,
+                    s010.slave_id,
+                    s010.org_id,
+                    concat(s020.slave_id,'-', s020.seq) as seq
+            from	tb_s050.tb_s050_slave010  s010
+            inner join tb_s050.tb_s050_slave020  s020
+            on	s010.slave_id = s020.slave_id
+            inner join tb_s050.tb_s050_master020  m020
+            on	s010.slave_id = m020.slave_id
+            where	s010.app_tp  = '02'
+            and		s010.org_id  = #{orgId}
+        )
+        select	sum(fix_cnt) as gr_fix_cnt,		-- 점검 갯수
+                master_id	as self_id,			-- 자가 ID
+                org_id	as parent_id,			-- 상위 ID
+                1	as lev,						-- Level
+                null 	as	extra_column		-- 여분항목
+        from	row_data
+        where	fix_cnt > 0
+        group by master_id,
+                 org_id
+        union all
+        select	sum(fix_cnt) as gr_fix_cnt,
+                slave_id	as self_id,
+                master_id	as parent_id,
+                2	as lev,
+                null 	as	extra_column
+        from	row_data
+        where	fix_cnt > 0
+        group by master_id,
+                 slave_id
+        union all
+        select	sum(fix_cnt) as gr_fix_cnt,
+                seq	as self_id,
+                slave_id	as parent_id,
+                3	as lev,
+                master_id 	as	extra_column
+        from	row_data
+        where	fix_cnt > 0
+        group by master_id,
+                 seq
+    </select>
+
+    <select id="GetFootAlarmVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        <!-- 하단의 최신의 경고 알람 조회 -->
+        with	row_data as (
+            select	date_format(s020.ALARM_END_TM, '%y-%m-%d %T') ALARM_END_TM,
+                    s020.slave_detail_nm,
+                    s020.alarm_tp,
+                    '알람'	as alarm_fix_tp
+            from	tb_s050.tb_s050_slave010  s010
+            inner join tb_s050.tb_s050_slave020  s020
+            on	s010.slave_id = s020.slave_id
+            inner join tb_s050.tb_s050_master020  m020
+            on	s010.slave_id = m020.slave_id
+            and	s020.alarm_tp is not null
+            where	s010.app_tp  = '02'
+            and		s010.org_id  = #{orgId}
+            union all
+            select	date_format(s020.SLAVE_FIXED_DATE, '%y-%m-%d %T') ALARM_END_TM,
+                    s020.slave_detail_nm,
+                    null	as alarm_tp,
+                    '점검'	as alarm_fix_tp
+            from	tb_s050.tb_s050_slave010  s010
+            inner join tb_s050.tb_s050_slave020  s020
+            on	s010.slave_id = s020.slave_id
+            inner join tb_s050.tb_s050_master020  m020
+            on	s010.slave_id = m020.slave_id
+            and	s020.fix_flag is not null
+            where	s010.app_tp  = '02'
+            and		s010.org_id  = #{orgId}
+        )
+        select	ALARM_END_TM,			-- 알람발생시각
+        slave_detail_nm,		-- Machine 명
+        alarm_tp,				-- 알람유형
+        alarm_fix_tp			-- 알람점검유형
+        from	row_data
+        order by ALARM_END_TM desc limit 1
+    </select>
+
+    <select id="GetFootAlarmCntVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        <!-- 하단의 경고 갯수 조회 -->
+        with	row_data as (
+            select	date_format(s020.ALARM_END_TM, '%y-%m-%d %T') ALARM_END_TM,
+                    s020.slave_detail_nm,
+                    '알람'	as alarm_tp
+            from	tb_s050.tb_s050_slave010  s010
+            inner join tb_s050.tb_s050_slave020  s020
+            on	s010.slave_id = s020.slave_id
+            inner join tb_s050.tb_s050_master020  m020
+            on	s010.slave_id = m020.slave_id
+            and	s020.alarm_tp is not null
+            where	s010.app_tp  = '02'
+            and		s010.org_id  = #{orgId}
+            union all
+            select	date_format(s020.SLAVE_FIXED_DATE, '%y-%m-%d %T') ALARM_END_TM,
+                    s020.slave_detail_nm,
+                    '점검'	as alarm_tp
+            from	tb_s050.tb_s050_slave010  s010
+            inner join tb_s050.tb_s050_slave020  s020
+            on	s010.slave_id = s020.slave_id
+            inner join tb_s050.tb_s050_master020  m020
+            on	s010.slave_id = m020.slave_id
+            and	s020.fix_flag is not null
+            where	s010.app_tp  = '02'
+            and		s010.org_id  = #{orgId}
+        )
+        select	alarm_tp,					-- 알람유형
+                count(alarm_tp) alarm_cnt	-- 알람 갯수
+        from	row_data
+        group by alarm_tp
+    </select>
+</mapper>

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S052030070">
+
+    <select id="GetArarmListVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        select	s010.slave_nm,						-- slave 명
+        s030.seq,							-- slave 순번
+        s020.alarm_max_value,				-- 경고 Max
+        s020.alarm_min_value,				-- 경고 Min
+        s020.alarm_tm,						-- 경고 지속시간
+        date_format(s030.alarm_start_tm, '%Y-%m-%d %H:%i:%s') as alarm_start_tm,				-- 경고 시작시간
+        date_format(s030.alarm_end_tm, '%Y-%m-%d %H:%i:%s') as alarm_end_tm,					-- 경고 종료시간
+        case when s010.slave_tp = 'V' then '전류기'
+        when s010.slave_tp = 'L' then '레벨기'
+        end	slave_tp_nm,					-- slave 구분명
+        s010.slave_tp,						-- slave 구분
+        s030.slave_id						-- slave id
+        from	tb_s050.tb_s050_slave030 s030
+        inner join tb_s050.tb_s050_slave020 s020
+        on	s020.slave_id = s030.slave_id
+        and s020.seq = s030.seq
+        inner join tb_s050.tb_s050_slave010 s010
+        on	s020.slave_id = s010.slave_id
+        where	s010.org_id = #{orgId}
+        and		s010.slave_nm like concat('%', #{slaveNm}, '%')
+        and		app_tp = '02'
+    </select>
+
+    <select id="GetArarmGraphVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        select	date_format(p010.pump_event_tm, '%Y-%m-%d %H:%i:%s') as pump_event_tm,		-- event 발생시간
+        p010.r_value,			-- 전류기 R값
+        p010.s_value,			-- 전류기 S값
+        p010.t_value,			-- 전류기 T값
+        p010.l_value,			-- 레벨기 L값
+        s010.slave_tp,			-- slave 구분
+        p010.slave_id,			-- hiden 으로 사용할 slave_id
+        p010.seq,				-- hiden 으로 사용할 seq
+        s020.alarm_max_value,	-- 경고 Max 값
+        s020.alarm_min_value	-- 경고 Min 값
+        from	tb_s050.tb_s050_pump010 p010
+        inner join	tb_s050.tb_s050_slave010 s010
+        on	p010.slave_id = s010.slave_id
+        inner join	tb_s050.tb_s050_slave020 s020
+        on	p010.slave_id = s020.slave_id
+        and	p010.seq = s020.seq
+        where	p010.slave_id = #{slaveId}
+        and		p010.seq = #{seq}
+        and		pump_event_tm <![CDATA[>=]]> date_sub(#{fromEventTm}, INTERVAL 30 SECOND)
+        and		pump_event_tm <![CDATA[<=]]> date_add(#{toEventTm}, INTERVAL 30 SECOND)
+    </select>
+
+    <delete id="deleteAlarmVO" parameterType="java.util.Map">
+        DELETE FROM tb_s050.tb_s050_slave030
+        WHERE	slave_id = #{slaveId}
+        and		seq = #{seq}
+        and		alarm_end_tm = #{alarmEndTm};
+    </delete>
+
+</mapper>

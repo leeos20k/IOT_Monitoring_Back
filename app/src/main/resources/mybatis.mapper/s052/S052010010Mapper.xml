@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S052010010">
+
+    <select id="GetGroupListVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        <include refid="COMMON.pagingTop"/>
+        SELECT	AREA_NM,							-- 그룹명
+                COUNT(MASTER_ID)	MASTER_CNT,		-- MASTER 대수
+                AREA_SEQ,							-- HIDDEN 으로 사용할 AREA_SEQ
+                comments
+        FROM	TB_S050.TB_S050_AREA010
+        WHERE	ORG_ID = #{orgId}
+        and		AREA_NM like concat('%', ifnull(#{areaNm}, ''), '%')
+        AND		APP_TP = #{appTp}
+        GROUP BY  	AREA_NM,
+                    AREA_SEQ,
+                    comments
+        <include refid="COMMON.pagingBottom"/>
+    </select>
+
+    <delete id="deleteGroup" parameterType="java.util.Map">
+        DELETE FROM tb_s050.tb_s050_area010
+        WHERE	ORG_ID = #{orgId}				-- 로그인 org_id
+        and		AREA_SEQ = #{areaSeq} 			-- 선택한 area_seq
+        AND		APP_TP = #{appTp}			-- 로그인 APP 구분
+    </delete>
+
+</mapper>

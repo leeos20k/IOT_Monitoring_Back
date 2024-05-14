@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S052010070">
+    <select id="GetUserList" parameterType="java.util.Map" resultType="CamelHashMap">
+        -- 사용자 조회 VO
+        SELECT 	u010.org_id, 			-- hidden의 사용할 org_id
+        u010.user_id,			-- hidden의 사용할 user_id
+        u010.admin_flag,		-- hidden의 사용할 관리자여부
+        u010.system_flag,		-- hidden의 사용할 시스템담당자 여부
+        u010.app_tp,			-- hidden의 사용할 APP 구분
+        u010.user_nm,			-- 화면의 성명
+        u010.hp_no,				-- 화면의 HP_NO
+        u010.comments,			-- 화면의 비고
+        u010.ADMIN_FLAG,
+        org010.org_nm			-- 화면의 단체명
+        FROM 	tb_s050.tb_s050_user010 u010
+        inner join tb_s050.tb_s050_org020 org020
+        on	org020.org_id = u010.org_id
+        and	org020.app_tp = u010.app_tp
+        inner join tb_s050.tb_s050_org010 org010
+        on	org020.org_id = org010.org_id
+        where	u010.org_id = #{orgId}
+        and		u010.app_tp = #{appTp}
+        and		u010.user_nm like concat('%', #{userNm}, '%');  -- 검색조건 성명
+    </select>
+
+    <delete id="DeleteUser" parameterType="java.util.Map">
+        -- 사용자 삭제처리
+        DELETE FROM tb_s050.tb_s050_user010
+        WHERE user_id = #{userId}
+    </delete>
+
+    <update id="UpdateUser" parameterType="java.util.Map">
+        -- 사용자 수정처리
+        UPDATE tb_s050.tb_s050_user010
+        SET	LAST_OBJECT_ID = #{loginId},					-- 로그인 userID
+        UPDATE_TIMESTAMP = sysdate(),
+        UPDATE_PROGRAM_ID = 'S052010070',
+        USER_NM = #{userNm},		-- 화면의 성명
+        HP_NO = #{hpNo},			-- 화면의 HP_NO
+        COMMENTS = #{comments},		-- 화면의 비고
+        ADMIN_FLAG = #{adminFlag}
+        WHERE USER_ID = #{userId}		-- 화면의 선택한 USER_ID
+    </update>
+
+    <insert id="InsertUser" parameterType="java.util.Map">
+        -- 사용자 Insert처리
+        INSERT INTO tb_s050.tb_s050_user010
+                (USER_ID,
+                CREATE_OBJECT_ID,
+                CREATE_TIMESTAMP,
+                CREATE_PROGRAM_ID,
+                LAST_OBJECT_ID,
+                UPDATE_TIMESTAMP,
+                UPDATE_PROGRAM_ID,
+                ORG_ID,
+                USER_NM,
+                HP_NO,
+                APP_TP,
+                COMMENTS,
+                ADMIN_FLAG)
+        VALUES
+                (nextval(tb_s050.sq_s050_user010),
+                #{loginId},			-- 로그인 userID
+                sysdate(),
+                'S052010070',
+                #{loginId},			-- 로그인 userID
+                sysdate(),
+                'S052010070',
+                #{orgId},			-- 로그인 user 의 ORG_ID
+                #{userNm},			-- 화면의 성명
+                #{hpNo},			-- 화면의 HP_NO
+                '02',
+                #{comments},
+                #{adminFlag})		-- 화면의 비고
+    </insert>
+
+    <insert id="InsertEMUser" parameterType="java.util.Map">
+        -- 사용자 Insert처리
+        INSERT INTO tb_s050.tb_s050_user010
+                (USER_ID,
+                CREATE_OBJECT_ID,
+                CREATE_TIMESTAMP,
+                CREATE_PROGRAM_ID,
+                LAST_OBJECT_ID,
+                UPDATE_TIMESTAMP,
+                UPDATE_PROGRAM_ID,
+                ORG_ID,
+                USER_NM,
+                HP_NO,
+                APP_TP,
+                COMMENTS,
+                ADMIN_FLAG)
+        VALUES
+                (nextval(tb_s050.sq_s050_user010),
+                #{loginId},			-- 로그인 userID
+                sysdate(),
+                'S052010070',
+                #{loginId},			-- 로그인 userID
+                sysdate(),
+                'S052010070',
+                #{orgId},			-- 로그인 user 의 ORG_ID
+                #{userNm},			-- 화면의 성명
+                #{hpNo},			-- 화면의 HP_NO
+                '04',
+                #{comments},
+                #{adminFlag})		-- 화면의 비고
+    </insert>
+
+</mapper>

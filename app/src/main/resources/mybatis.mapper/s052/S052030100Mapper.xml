@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S052030100">
+
+    <select id="GetEnergyMonPlanVO" parameterType="java.util.Map" resultType="CamelHashMap">
+            with plan_row_date as (
+                    select 	date_format(plan_year, '%Y')	plan_year,
+                            date_format(plan_year, '%m')	mm,
+                            pl010.energe_plan_tp,
+                            pl010.val,
+                            pl010.org_id
+                    FROM 	tb_s050.tb_s050_plan010 pl010
+                    where 	org_id = #{orgId} 			-- org_id
+                    and		date_format(plan_year, '%Y') = #{planYear} ),
+            plan_collect_value as (
+                    select	plan_year,
+                            energe_plan_tp,
+                            max(case when energe_plan_tp = '11' and mm ='01' then val  end) as jan_value,
+                            max(case when energe_plan_tp = '11' and mm ='02' then val  end) as feb_value,
+                            max(case when energe_plan_tp = '11' and mm ='03' then val  end) as mar_value,
+                            max(case when energe_plan_tp = '11' and mm ='04' then val  end) as apr_value,
+                            max(case when energe_plan_tp = '11' and mm ='05' then val  end) as may_value,
+                            max(case when energe_plan_tp = '11' and mm ='06' then val  end) as jun_value,
+                            max(case when energe_plan_tp = '11' and mm ='07' then val  end) as jul_value,
+                            max(case when energe_plan_tp = '11' and mm ='08' then val  end) as aug_value,
+                            max(case when energe_plan_tp = '11' and mm ='09' then val  end) as sep_value,
+                            max(case when energe_plan_tp = '11' and mm ='10' then val  end) as oct_value,
+                            max(case when energe_plan_tp = '11' and mm ='11' then val  end) as nov_value,
+                            max(case when energe_plan_tp = '11' and mm ='12' then val  end) as dec_value,
+                            org_id
+                    from	plan_row_date
+                    where	energe_plan_tp = '11'
+                    union all
+                    select	plan_year,
+                            energe_plan_tp,
+                            max(case when energe_plan_tp = '21' and mm ='01' then val  end) as jan_value,
+                            max(case when energe_plan_tp = '21' and mm ='02' then val  end) as feb_value,
+                            max(case when energe_plan_tp = '21' and mm ='03' then val  end) as mar_value,
+                            max(case when energe_plan_tp = '21' and mm ='04' then val  end) as apr_value,
+                            max(case when energe_plan_tp = '21' and mm ='05' then val  end) as may_value,
+                            max(case when energe_plan_tp = '21' and mm ='06' then val  end) as jun_value,
+                            max(case when energe_plan_tp = '21' and mm ='07' then val  end) as jul_value,
+                            max(case when energe_plan_tp = '21' and mm ='08' then val  end) as aug_value,
+                            max(case when energe_plan_tp = '21' and mm ='09' then val  end) as sep_value,
+                            max(case when energe_plan_tp = '21' and mm ='10' then val  end) as oct_value,
+                            max(case when energe_plan_tp = '21' and mm ='11' then val  end) as nov_value,
+                            max(case when energe_plan_tp = '21' and mm ='12' then val  end) as dec_value,
+                            org_id
+                    from	plan_row_date
+                    where	energe_plan_tp = '21'
+                    union all
+                    select	plan_year,
+                            energe_plan_tp,
+                            max(case when energe_plan_tp = '31' and mm ='01' then val  end) as jan_value,
+                            max(case when energe_plan_tp = '31' and mm ='02' then val  end) as feb_value,
+                            max(case when energe_plan_tp = '31' and mm ='03' then val  end) as mar_value,
+                            max(case when energe_plan_tp = '31' and mm ='04' then val  end) as apr_value,
+                            max(case when energe_plan_tp = '31' and mm ='05' then val  end) as may_value,
+                            max(case when energe_plan_tp = '31' and mm ='06' then val  end) as jun_value,
+                            max(case when energe_plan_tp = '31' and mm ='07' then val  end) as jul_value,
+                            max(case when energe_plan_tp = '31' and mm ='08' then val  end) as aug_value,
+                            max(case when energe_plan_tp = '31' and mm ='09' then val  end) as sep_value,
+                            max(case when energe_plan_tp = '31' and mm ='10' then val  end) as oct_value,
+                            max(case when energe_plan_tp = '31' and mm ='11' then val  end) as nov_value,
+                            max(case when energe_plan_tp = '31' and mm ='12' then val  end) as dec_value,
+                            org_id
+                    from	plan_row_date
+                    where	energe_plan_tp = '31'
+                    union all
+                    select	plan_year,
+                            energe_plan_tp,
+                            max(case when energe_plan_tp = '41' and mm ='01' then val  end) as jan_value,
+                            max(case when energe_plan_tp = '41' and mm ='02' then val  end) as feb_value,
+                            max(case when energe_plan_tp = '41' and mm ='03' then val  end) as mar_value,
+                            max(case when energe_plan_tp = '41' and mm ='04' then val  end) as apr_value,
+                            max(case when energe_plan_tp = '41' and mm ='05' then val  end) as may_value,
+                            max(case when energe_plan_tp = '41' and mm ='06' then val  end) as jun_value,
+                            max(case when energe_plan_tp = '41' and mm ='07' then val  end) as jul_value,
+                            max(case when energe_plan_tp = '41' and mm ='08' then val  end) as aug_value,
+                            max(case when energe_plan_tp = '41' and mm ='09' then val  end) as sep_value,
+                            max(case when energe_plan_tp = '41' and mm ='10' then val  end) as oct_value,
+                            max(case when energe_plan_tp = '41' and mm ='11' then val  end) as nov_value,
+                            max(case when energe_plan_tp = '41' and mm ='12' then val  end) as dec_value,
+                            org_id
+                    from	plan_row_date
+                    where	energe_plan_tp = '41') ,
+            plan_info as (
+                    select 	plan_year,
+                            energe_plan_tp,
+                            jan_value + feb_value + mar_value + apr_value + may_value + jun_value + jul_value + aug_value + sep_value + oct_value + nov_value + dec_value as total_value,
+                            jan_value,
+                            feb_value,
+                            mar_value,
+                            apr_value,
+                            may_value,
+                            jun_value,
+                            jul_value,
+                            aug_value,
+                            sep_value,
+                            oct_value,
+                            nov_value,
+                            dec_value,
+                            org_id
+                    from  plan_collect_value )
+            select	plan_year,				-- 년도
+                    energe_plan_tp,			-- 에너지 계획 구분
+                    (select	cd010.cd_v_nm
+                    from	tb_s050.tb_s050_cd010 cd010
+                    where	cd010.cd_tp = 'ENERGE_PLAN_TP'
+                    and		cd010.org_id = pi.org_id
+                    and		cd010.category = '000'
+                    and		cd010.lang = 'KOR'
+                    and		cd010.cd_v = pi.energe_plan_tp)		energe_plan_tp_nm,
+                    total_value,
+                    jan_value,
+                    feb_value,
+                    mar_value,
+                    apr_value,
+                    may_value,
+                    jun_value,
+                    jul_value,
+                    aug_value,
+                    sep_value,
+                    oct_value,
+                    nov_value,
+                    dec_value
+            from	plan_info		pi
+            union all
+            select	plan_year,
+                    '12' as energe_plan_tp,
+                    (select	cd010.cd_v_nm
+                    from	tb_s050.tb_s050_cd010 cd010
+                    where	cd010.cd_tp = 'ENERGE_PLAN_TP'
+                    and		cd010.org_id = pi.org_id
+                    and		cd010.category = '000'
+                    and		cd010.lang = 'KOR'
+                    and		cd010.cd_v = '12')		energe_plan_tp_nm,
+                    round(group_concat(case when energe_plan_tp='11' then total_value end) / group_concat(case when energe_plan_tp='21' then total_value end), 1)  as tot_p_rate,
+                    round(group_concat(case when energe_plan_tp='11' then jan_value end) / group_concat(case when energe_plan_tp='21' then jan_value end), 1)  as jun_p_rate,
+                    round(group_concat(case when energe_plan_tp='11' then feb_value end) / group_concat(case when energe_plan_tp='21' then feb_value end), 1)  as feb_p_rate,
+                    round(group_concat(case when energe_plan_tp='11' then mar_value end) / group_concat(case when energe_plan_tp='21' then mar_value end), 1)  as mar_p_rate,
+                    round(group_concat(case when energe_plan_tp='11' then apr_value end) / group_concat(case when energe_plan_tp='21' then apr_value end), 1)  as apr_p_rate,
+                    round(group_concat(case when energe_plan_tp='11' then may_value end) / group_concat(case when energe_plan_tp='21' then may_value end), 1)  as may_p_rate,
+                    round(group_concat(case when energe_plan_tp='11' then jun_value end) / group_concat(case when energe_plan_tp='21' then jun_value end), 1)  as jun_p_rate,
+                    round(group_concat(case when energe_plan_tp='11' then jul_value end) / group_concat(case when energe_plan_tp='21' then jul_value end), 1)  as jul_p_rate,
+                    round(group_concat(case when energe_plan_tp='11' then aug_value end) / group_concat(case when energe_plan_tp='21' then aug_value end), 1)  as aug_p_rate,
+                    round(group_concat(case when energe_plan_tp='11' then sep_value end) / group_concat(case when energe_plan_tp='21' then sep_value end), 1)  as sep_p_rate,
+                    round(group_concat(case when energe_plan_tp='11' then oct_value end) / group_concat(case when energe_plan_tp='21' then oct_value end), 1)  as oct_p_rate,
+                    round(group_concat(case when energe_plan_tp='11' then nov_value end) / group_concat(case when energe_plan_tp='21' then nov_value end), 1)  as nov_p_rate,
+                    round(group_concat(case when energe_plan_tp='11' then dec_value end) / group_concat(case when energe_plan_tp='21' then dec_value end), 1)  as dec_p_rate
+            from 	plan_info	pi
+            union all
+            select	plan_year,
+                    '32' as energe_plan_tp,
+                    (select	cd010.cd_v_nm
+                    from	tb_s050.tb_s050_cd010 cd010
+                    where	cd010.cd_tp = 'ENERGE_PLAN_TP'
+                    and		cd010.org_id = pi.org_id
+                    and		cd010.category = '000'
+                    and		cd010.lang = 'KOR'
+                    and		cd010.cd_v = '32')		energe_plan_tp_nm,
+                    round(group_concat(case when energe_plan_tp='31' then total_value end) / group_concat(case when energe_plan_tp='11' then total_value end), 1)  as tot_p_rate,
+                    round(group_concat(case when energe_plan_tp='31' then jan_value end) / group_concat(case when energe_plan_tp='11' then jan_value end), 1)  as jun_v_rate,
+                    round(group_concat(case when energe_plan_tp='31' then feb_value end) / group_concat(case when energe_plan_tp='11' then feb_value end), 1)  as feb_v_rate,
+                    round(group_concat(case when energe_plan_tp='31' then mar_value end) / group_concat(case when energe_plan_tp='11' then mar_value end), 1)  as mar_v_rate,
+                    round(group_concat(case when energe_plan_tp='31' then apr_value end) / group_concat(case when energe_plan_tp='11' then apr_value end), 1)  as apr_v_rate,
+                    round(group_concat(case when energe_plan_tp='31' then may_value end) / group_concat(case when energe_plan_tp='11' then may_value end), 1)  as may_v_rate,
+                    round(group_concat(case when energe_plan_tp='31' then jun_value end) / group_concat(case when energe_plan_tp='11' then jun_value end), 1)  as jun_v_rate,
+                    round(group_concat(case when energe_plan_tp='31' then jul_value end) / group_concat(case when energe_plan_tp='11' then jul_value end), 1)  as jul_v_rate,
+                    round(group_concat(case when energe_plan_tp='31' then aug_value end) / group_concat(case when energe_plan_tp='11' then aug_value end), 1)  as aug_v_rate,
+                    round(group_concat(case when energe_plan_tp='31' then sep_value end) / group_concat(case when energe_plan_tp='11' then sep_value end), 1)  as sep_v_rate,
+                    round(group_concat(case when energe_plan_tp='31' then oct_value end) / group_concat(case when energe_plan_tp='11' then oct_value end), 1)  as oct_v_rate,
+                    round(group_concat(case when energe_plan_tp='31' then nov_value end) / group_concat(case when energe_plan_tp='11' then nov_value end), 1)  as nov_v_rate,
+                    round(group_concat(case when energe_plan_tp='31' then dec_value end) / group_concat(case when energe_plan_tp='11' then dec_value end), 1)  as dec_V_rate
+            from  plan_info 	pi
+            union all
+            select	plan_year,
+                    '42' as energe_plan_tp,
+                    (select	cd010.cd_v_nm
+                    from	tb_s050.tb_s050_cd010 cd010
+                    where	cd010.cd_tp = 'ENERGE_PLAN_TP'
+                    and		cd010.org_id = pi.org_id
+                    and		cd010.category = '000'
+                    and		cd010.lang = 'KOR'
+                    and		cd010.cd_v = '42')		energe_plan_tp_nm,
+                    round(group_concat(case when energe_plan_tp='41' then total_value end) / group_concat(case when energe_plan_tp='11' then total_value end), 1)  as tot_p_rate,
+                    round(group_concat(case when energe_plan_tp='41' then jan_value end) / group_concat(case when energe_plan_tp='11' then jan_value end), 2)  as jun_l_rate,
+                    round(group_concat(case when energe_plan_tp='41' then feb_value end) / group_concat(case when energe_plan_tp='11' then feb_value end), 2)  as feb_l_rate,
+                    round(group_concat(case when energe_plan_tp='41' then mar_value end) / group_concat(case when energe_plan_tp='11' then mar_value end), 2)  as mar_l_rate,
+                    round(group_concat(case when energe_plan_tp='41' then apr_value end) / group_concat(case when energe_plan_tp='11' then apr_value end), 2)  as apr_l_rate,
+                    round(group_concat(case when energe_plan_tp='41' then may_value end) / group_concat(case when energe_plan_tp='11' then may_value end), 2)  as may_l_rate,
+                    round(group_concat(case when energe_plan_tp='41' then jun_value end) / group_concat(case when energe_plan_tp='11' then jun_value end), 2)  as jun_l_rate,
+                    round(group_concat(case when energe_plan_tp='41' then jul_value end) / group_concat(case when energe_plan_tp='11' then jul_value end), 2)  as jul_l_rate,
+                    round(group_concat(case when energe_plan_tp='41' then aug_value end) / group_concat(case when energe_plan_tp='11' then aug_value end), 2)  as aug_l_rate,
+                    round(group_concat(case when energe_plan_tp='41' then sep_value end) / group_concat(case when energe_plan_tp='11' then sep_value end), 2)  as sep_l_rate,
+                    round(group_concat(case when energe_plan_tp='41' then oct_value end) / group_concat(case when energe_plan_tp='11' then oct_value end), 2)  as oct_l_rate,
+                    round(group_concat(case when energe_plan_tp='41' then nov_value end) / group_concat(case when energe_plan_tp='11' then nov_value end), 2)  as nov_l_rate,
+                    round(group_concat(case when energe_plan_tp='41' then dec_value end) / group_concat(case when energe_plan_tp='11' then dec_value end), 2)  as dec_l_rate
+            from 	plan_info	pi
+            ;
+    </select>
+
+    <delete id="DelProductionPlanVO" parameterType="java.util.Map">
+            delete from tb_s050.tb_s050_plan010
+            where 	org_id = #{orgId}				                    -- 로그인 org ID
+            and		date_format(plan_year, '%Y') = #{planYear} ;		-- 화면의 선택한 년도
+    </delete>
+
+    <insert id="AddProductionPlanVO" parameterType="java.util.Map">
+            INSERT INTO tb_s050.tb_s050_plan010
+                    (PLAN_YEAR,
+                    ENERGE_PLAN_TP,
+                    CREATE_OBJECT_ID,
+                    CREATE_TIMESTAMP,
+                    CREATE_PROGRAM_ID,
+                    LAST_OBJECT_ID,
+                    UPDATE_TIMESTAMP,
+                    UPDATE_PROGRAM_ID,
+                    ORG_ID,
+                    VAL)
+            VALUES
+                    (concat(#{planYear}, '-01 07:00:01'),	    -- 등록할 년도-월 ( ex : '2024-01', '2024-02', '2024-03' 등)
+                    #{energePlanTp},						    -- 화면의 구분 (ENERGE_PLAN_TP)
+                    #{userId},						            -- 로그인 사용자 ID
+                    sysdate(),
+                    'S052030100',
+                    #{userId},						            -- 로그인 사용자 ID
+                    sysdate(),
+                    'S052030100',
+                    #{orgId},						            -- 로그인 org ID
+                    #{val})
+    </insert>
+
+</mapper>

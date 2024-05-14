@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S051030020">
+    <select id="selectGetUserMasterList" parameterType="java.util.Map" resultType="CamelHashMap">
+        -- 담당자별 Master 조회
+        WITH SW_VALUE AS (
+            SELECT	DISTINCT  MASTER_ID,
+                    SW_VALUE
+            FROM 	TB_S050.TB_S050_SW010  S010
+            WHERE 	ORG_ID = 1 )
+        SELECT 	SW_V.MASTER_ID,					-- HIDDEN으로 사용할 MASTER_ID
+                U010.USER_NM,					-- 담당자명
+                U010.HP_NO,						-- 담당자 HP번호
+                M010.MASTER_NM,					-- MASTER 명
+                (SELECT A010.AREA_NM
+                FROM	TB_S050.TB_S050_AREA010  A010
+                WHERE	A010.MASTER_ID = M010.MASTER_ID
+                AND		A010.ORG_ID = M010.ORG_ID) 	AREA_NM,					-- 구역명
+                CASE WHEN SUM(SW_V.SW_VALUE) = 1 AND	COUNT(SW_V.SW_VALUE) = 1 THEN	1		-- 정상
+                    WHEN SUM(SW_V.SW_VALUE) = 2 AND	COUNT(SW_V.SW_VALUE) = 1 THEN	2		-- 이상감지
+                    WHEN SUM(SW_V.SW_VALUE) = 3 AND	COUNT(SW_V.SW_VALUE) = 1 THEN	3		-- 통신오류
+                    WHEN SUM(SW_V.SW_VALUE) = 3 AND	COUNT(SW_V.SW_VALUE) = 2 THEN	2		-- 이상감지
+                    WHEN SUM(SW_V.SW_VALUE) = 4 AND	COUNT(SW_V.SW_VALUE) = 2 THEN	3		-- 통신오류
+                    WHEN SUM(SW_V.SW_VALUE) >= 5  THEN	4										-- 복합오류
+                END	EVENT_VALUE,					-- SW 상태
+                SUM(SW_V.SW_VALUE) 		SW_VALUE_SUM,				-- HIDDEN 으로 사용할 SW값의 합
+                COUNT(SW_V.SW_VALUE)	SW_VALUE_CNT     		-- HIDDEN 으로 사용할 SW값의 갯수
+        FROM 	SW_VALUE  SW_V,
+                TB_S050.TB_S050_USER010  U010,
+                TB_S050.TB_S050_USER020  U020,
+                TB_S050.TB_S050_MASTER010  M010
+        WHERE	U010.ORG_ID = #{orgId}
+        AND		U010.USER_ID = #{userId}
+        AND		U020.USER_ID = U010.USER_ID
+        AND		M010.MASTER_ID = U020.MASTER_ID
+        AND		SW_V.MASTER_ID = M010.MASTER_ID
+        AND		U010.APP_TP = M010.APP_TP
+        AND		U010.APP_TP = '01'
+        GROUP BY SW_V.MASTER_ID
+    </select>
+</mapper>

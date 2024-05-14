@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S051010020">
+    <select id="selectGetAreaDetail" parameterType="java.util.Map" resultType="CamelHashMap">
+        with used_master as (
+        SELECT	master_id,
+        m010.org_id,
+        (select	a010.area_seq
+        from	tb_s050.tb_s050_area010  a010
+        where	m010.master_id = a010.master_id)  area_seq
+        FROM 	tb_s050.tb_s050_master010  m010  )
+        select  m010.master_id	display_ma_id,
+        m010.master_nm,
+        (select	case when um.area_seq is null then 3
+        when um.area_seq is not null and um.area_seq = ifnull(#{areaSeq},0) then 1			-- 선택한 area_seq
+        when um.area_seq is not null and um.area_seq != ifnull(#{areaSeq},0) then 2			-- 선택한 area_seq
+        end choice_master
+        from	used_master  um
+        where	um.master_id = m010.master_id
+        and		um.org_id = m010.org_id) 	selected_ma_id,
+        a010.area_nm,
+        a010.area_seq
+        from	tb_s050.tb_s050_master010  m010
+        left outer join tb_s050.tb_s050_area010  a010
+        on	m010.org_id = a010.org_id
+        and	m010.master_id = a010.master_id
+        and	a010.area_seq = #{areaSeq}				-- 선택한 area_seq
+        where	m010.org_id = #{orgId}					-- 로그인한 user의 org_id
+        AND		m010.APP_TP = '01'
+    </select>
+
+    <select id="selectGetAreaSeq" parameterType="java.util.Map" resultType="CamelHashMap">
+        select ifnull(max(area_seq) + 1, 1)	area_seq
+        from	tb_s050.tb_s050_area010
+        where	org_id = 1
+        and		APP_TP = '01'
+    </select>
+
+    <insert id="insertArea" parameterType="java.util.Map">
+        INSERT INTO tb_s050.tb_s050_area010
+            (AREA_SEQ,
+            MASTER_ID,
+            CREATE_OBJECT_ID,
+            CREATE_TIMESTAMP,
+            CREATE_PROGRAM_ID,
+            LAST_OBJECT_ID,
+            UPDATE_TIMESTAMP,
+            UPDATE_PROGRAM_ID,
+            ORG_ID,
+            AREA_NM,
+            APP_TP)
+        VALUES
+            (#{areaSeq},		-- area_seq	  (신규 등록시 : 조회한 area_seq, 수정 등록시 : 선택한 area_seq)
+            #{masterId},			-- 선택한 Master_ID
+            #{userId},			-- 로그인 user_id
+            sysdate(),
+            's051010010',
+            #{userId},			-- 로그인 user_id
+            sysdate(),
+            's051010010',
+            #{orgId},			-- 로그인 org_id
+            #{areaNm},			-- 화면의 구역명
+            '01')
+    </insert>
+
+    <delete id="deleteArea" parameterType="java.util.Map">
+        DELETE FROM tb_s050.tb_s050_area010
+        WHERE AREA_SEQ = #{areaSeq}
+        and		APP_TP = '01'
+    </delete>
+</mapper>

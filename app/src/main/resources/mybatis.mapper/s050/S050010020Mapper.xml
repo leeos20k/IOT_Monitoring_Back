@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S050010020">
+    <select id="GetOrgDetailHeadVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        select  distinct org010.org_nm,		-- 단체명
+                org010.ceo_nm,				-- 대표자명
+                u010.USER_NM,				-- 관리자명
+                u010.hp_no					-- 관리자 HP_NO
+        from	tb_s050.tb_s050_org010 as org010
+                inner join tb_s050.tb_s050_user010  u010
+                on	org010.org_id = u010.org_id
+        where	org010.org_id = #{orgId}
+    </select>
+
+    <select id="GetOrgDetailLineVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        with org_info as (
+            select	org020.app_tp  selected_app_tp,
+                    org010.org_nm,
+                    org010.ceo_nm,
+                    org010.org_id
+            from	tb_s050.tb_s050_org010 as org010
+            inner join tb_s050.tb_s050_org020 as org020
+            on	org010.org_id = org020.org_id
+            where	org010.org_id = #{orgId} )
+        select	oi.selected_app_tp,					-- 적용된 앱 유형코드
+                ap010.app_tp,		-- 화면 출력 앱 유형코드
+                ap010.tp_nm        					-- 앱 명
+        from	tb_s050.tb_s050_app010 ap010
+                left outer join org_info oi
+                on	ap010.app_tp = oi.selected_app_tp
+    </select>
+
+    <insert id="insertOrg" parameterType="java.util.Map">
+        INSERT INTO tb_s050.tb_s050_org010
+                (ORG_ID,
+                CREATE_OBJECT_ID,
+                CREATE_TIMESTAMP,
+                CREATE_PROGRAM_ID,
+                LAST_OBJECT_ID,
+                UPDATE_TIMESTAMP,
+                UPDATE_PROGRAM_ID,
+                ORG_NM,
+                CEO_NM)
+        VALUES
+                (nextval(tb_s050.sq_s050_org010),
+                #{loginId},				-- 로그인 USER_ID
+                sysdate(),
+                's050010020',
+                #{loginId},				-- 로그인 USER_ID
+                sysdate(),
+                's050010020',
+                #{orgNm},				-- 단체명
+                #{ceoNm})			    -- 대표자명
+    </insert>
+
+    <insert id="insertApp" parameterType="java.util.Map">
+        INSERT INTO tb_s050.tb_s050_org020
+                (ORG_ID,
+                APP_TP,
+                CREATE_OBJECT_ID,
+                CREATE_TIMESTAMP,
+                CREATE_PROGRAM_ID,
+                LAST_OBJECT_ID,
+                UPDATE_TIMESTAMP,
+                UPDATE_PROGRAM_ID)
+        VALUES
+                (
+                <choose>
+                    <when test='orgId != null and orgId != ""'>
+                        #{orgId},      -- 신규 등록 : lastval(tb_s050.sq_s050_org010) / 수정등록시 : 선택된 orgId
+                    </when>
+                    <otherwise>
+                        lastval(tb_s050.sq_s050_org010),
+                    </otherwise>
+                </choose>
+                #{appTp},						-- 화면에서 선택한 app_tp
+                #{loginId},						-- 로그인 USER_ID
+                sysdate(),
+                's050010020',
+                #{loginId},						-- 로그인 USER_ID
+                sysdate(),
+                's050010020')
+    </insert>
+
+    <update id="updateOrg" parameterType="java.util.Map">
+        UPDATE tb_s050.tb_s050_org010
+        SET	LAST_OBJECT_ID = #{loginId},
+            UPDATE_TIMESTAMP = sysdate(),
+            UPDATE_PROGRAM_ID = 's050010020',
+            ORG_NM = #{orgNm},			-- 화면의 단체명
+            CEO_NM = #{ceoNm}				-- 화면의 대표자명
+        WHERE ORG_ID = #{orgId}			-- 선택한 org_id
+    </update>
+
+    <delete id="deleteApp" parameterType="java.util.Map">
+        delete from tb_s050.tb_s050_org020
+        where org_id = #{orgId}
+    </delete>
+
+    <insert id="insertUser" parameterType="java.util.Map">
+        INSERT INTO tb_s050.tb_s050_user010
+                (USER_ID,
+                CREATE_OBJECT_ID,
+                CREATE_TIMESTAMP,
+                CREATE_PROGRAM_ID,
+                LAST_OBJECT_ID,
+                UPDATE_TIMESTAMP,
+                UPDATE_PROGRAM_ID,
+                ORG_ID,
+                USER_NM,
+                ADMIN_FLAG,
+                HP_NO,
+                APP_TP)
+        VALUES
+                (nextval(tb_s050.sq_s050_user010),
+                #{loginId},				-- 화면에서 로그인한 hidden user_id
+                sysdate(),
+                's050010020',
+                #{loginId},				-- 화면에서 로그인한 hidden user_id
+                sysdate(),
+                's050010020',
+                <choose>
+                    <when test='orgId != null and orgId != ""'>
+                        #{orgId},      -- 신규 등록 : lastval(tb_s050.sq_s050_org010) / 수정등록시 : 선택된 orgId
+                    </when>
+                    <otherwise>
+                        lastval(tb_s050.sq_s050_org010),
+                    </otherwise>
+                </choose>
+                #{userNm},				-- 화면에서 입력한 대표자명
+                'Y',
+                #{hpNo},				-- 화면에서 입력한 HP_NO
+                #{appTp})			-- 화면에서 선택한 app_tp
+    </insert>
+
+    <delete id="deleteUser" parameterType="java.util.Map">
+        delete from tb_s050.tb_s050_user010
+        where org_id = #{orgId}
+    </delete>
+</mapper>

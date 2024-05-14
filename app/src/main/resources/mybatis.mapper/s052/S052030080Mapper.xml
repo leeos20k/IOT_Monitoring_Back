@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S052030080">
+
+    <select id="GetSlaveLovVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        select  concat(s010.slave_nm,'-', s020.seq) as slave_nm,		-- 화면에 출력할 slave 명
+        s020.seq,									-- hiiden 으로 사용할 seq
+        s010.slave_tp,								-- hiiden 으로 사용할 slave_tp 구분
+        s020.slave_id								-- hiiden 으로 사용할 slave_id
+        FROM 	tb_s050.tb_s050_slave010 s010
+        inner join tb_s050.tb_s050_slave020  s020
+        on s010.slave_id = s020.slave_id
+        where	s020.use_flag = 'Y'
+        and		s010.org_id = #{orgId}
+    </select>
+
+    <select id="GetSlaveRippleCompVO1" parameterType="java.util.Map" resultType="CamelHashMap">
+        select	p010.r_value,
+        p010.s_value,
+        p010.t_value,
+        p010.l_value,
+        date_format(p010.pump_event_tm, '%Y-%m-%d %H:%i:%s') as pump_event_tm,
+        s010.slave_nm,
+        p010.seq,
+        s010.slave_id,
+        s010.slave_tp
+        from	tb_s050.tb_s050_pump010	p010
+        inner join tb_s050.tb_s050_slave010	s010
+        on	s010.slave_id = p010.slave_id
+        where	p010.slave_id = #{firstSlaveId}			-- 첫번째 선택한 slave_id
+        and		p010.seq = #{firstSeq} 				-- 첫번째 선택한 seq
+        and		p010.pump_event_tm <![CDATA[>=]]> #{fromTm}	-- 조회일자 from (ex : '2023-09-14 08:50:00' )
+        and		p010.pump_event_tm <![CDATA[<=]]> #{toTm}	-- 조회일자 to (ex : '2023-09-14 08:51:00' )
+    </select>
+
+    <select id="GetSlaveRippleCompVO2" parameterType="java.util.Map" resultType="CamelHashMap">
+        select	p010.r_value,
+        p010.s_value,
+        p010.t_value,
+        p010.l_value,
+        date_format(p010.pump_event_tm, '%Y-%m-%d %H:%i:%s') as pump_event_tm,
+        s010.slave_nm,
+        p010.seq,
+        s010.slave_id,
+        s010.slave_tp
+        from	tb_s050.tb_s050_pump010	p010
+        inner join tb_s050.tb_s050_slave010	s010
+        on	s010.slave_id = p010.slave_id
+        where	p010.slave_id = #{secondSlaveId}			-- 두번째 선택한 slave_id
+        and		p010.seq = #{secondSeq}				-- 두번째 선택한 seq
+        and		p010.pump_event_tm <![CDATA[>=]]> #{fromTm}	-- 조회일자 from (ex : '2023-09-14 08:50:00' )
+        and		p010.pump_event_tm <![CDATA[<=]]> #{toTm}	-- 조회일자 to (ex : '2023-09-14 08:51:00' )
+    </select>
+
+</mapper>

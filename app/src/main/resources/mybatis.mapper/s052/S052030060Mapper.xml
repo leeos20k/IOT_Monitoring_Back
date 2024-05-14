@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S052030060">
+
+    <select id="GetAppMasterLovVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        select	m010.master_nm,
+        m010.master_id,
+        m010.slave_tp
+        from	tb_s050.tb_s050_master010	m010
+        where	m010.org_id = #{orgId}
+        and		m010.app_tp = '02'
+        and		m010.data_end_status is null ;
+    </select>
+
+    <select id="GetAppSlaveListVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        with area_master_info as (
+            select  m020.slave_id,
+                    m020.seq,
+                    m010.master_nm,
+                    m010.master_id,
+                    a010.area_nm,
+                    a010.area_seq,
+                    m010.org_id,
+                    m010.app_tp
+            from    tb_s050.tb_s050_master020 m020
+                    inner join tb_s050.tb_s050_master010 m010
+                    on m020.master_id = m010.master_id
+                    left outer join tb_s050.tb_s050_area010 a010
+                    on a010.master_id = m010.master_id
+                    and   a010.org_id = m010.org_id
+                    and a010.app_tp = m010.app_tp ),
+        pump_max_tm as (
+            select  max(pump_event_tm)  max_tm,
+                    p010.slave_id,
+                    p010.seq
+            from    tb_s050.tb_s050_pump010   p010
+                    inner join tb_s050.tb_s050_slave020   s020
+                    on   p010.slave_id = s020.slave_id
+                    and ifnull(s020.use_flag, 'N') = 'Y'
+                    and   p010.seq = s020.seq
+            where	p010.pump_event_tm <![CDATA[>=]]> date_sub(now(), interval 10 MINUTE)
+            group by p010.slave_id,
+                    p010.seq  )
+        select	s010.slave_nm,			-- slave 그룹명
+                p010.seq,				-- 순번
+                p010.slave_id,          -- slave_id
+                case when s020.attach_file_nm is not null then 'Y'
+                    else 'N'
+                end	attach_flag,		-- 첨부파일 존재 여부
+                p010.r_value,			-- 전류 R 값
+                p010.s_value,			-- 전류 S 값
+                p010.t_value,			-- 전류 T 값
+                p010.l_value,           -- 레벨  값
+                s020.alarm_max_value,	-- 알람 Max 값
+                s020.alarm_min_value,	-- 알람 Min 값
+                s010.slave_tp,			-- Slave 유형 (V : 전류 , L : 펌프 )
+                (select	cd_v_nm
+                from 	tb_s050.tb_s050_cd010
+                where	cd_tp = 'SLAVE_TP'
+                and		org_id = #{orgId}  			-- 로그인 사용자의 org_id
+                and		category = '000'
+                and		lang = 'KOR'
+                and		cd_v = s010.slave_tp) as slave_tp_nm,
+                max_tm
+        from	tb_s050.tb_s050_pump010   p010
+                inner join tb_s050.tb_s050_slave020   s020
+                on  p010.slave_id = s020.slave_id
+                and p010.seq = s020.seq
+                and	s020.use_flag = 'Y'
+                inner join tb_s050.tb_s050_slave010   s010
+                on   s010.slave_id = s020.slave_id
+                left outer join area_master_info   m020
+                on	m020.slave_id = s010.slave_id
+                and	m020.org_id = s010.org_id
+                and	m020.app_tp = s010.app_tp
+                inner join pump_max_tm tm
+                on tm.max_tm = p010.pump_event_tm
+                and tm.slave_id = p010.slave_id
+                and	tm.seq = p010.seq
+        where	p010.org_id = #{orgId}         						-- 로그인 Org_id (1)
+        and		s010.app_tp = '02'           						-- 로그인 APP 구분('02')
+        and		m020.master_id = #{masterId}   						-- 검색조건 master ID
+        and		p010.pump_event_tm <![CDATA[>=]]> date_sub(now(), interval 10 MINUTE)   ;
+    </select>
+
+    <select id="GetSlaveGraphVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        select  p010.pump_event_tm,
+                p010.r_value,
+                p010.s_value,
+                p010.t_value,
+                p010.l_value,
+                s020.alarm_max_value,
+                s020.alarm_min_value,
+                s020.alarm_tm
+        from   tb_s050.tb_s050_pump010   p010
+                inner join tb_s050.tb_s050_slave020   s020
+                on   p010.slave_id = s020.slave_id
+                and   p010.seq = s020.seq
+        where   p010.slave_id = #{slaveId}				-- 선택한 slave_id
+        and      p010.seq = #{seq}					-- 선택한 slave_ 순번
+        and      p010.pump_event_tm <![CDATA[>=]]> date_sub(date_format(#{toTime},  '%Y-%m-%d %T'), interval 2 minute)     -- 검색조건 from 일시 ('2023-10-16 18:00:00')
+        and      p010.pump_event_tm <![CDATA[<=]]> #{toTime} ;
+    </select>
+
+</mapper>

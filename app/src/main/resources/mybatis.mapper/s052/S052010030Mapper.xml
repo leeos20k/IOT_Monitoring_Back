@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S052010030">
+    <select id="GetMasterList" parameterType="java.util.Map" resultType="CamelHashMap">
+        <!--        <include refid="COMMON.pagingTop"/>-->
+        select	m010.master_id,						-- master ID
+        m010.master_nm,						-- master 명
+        m010.master_ip,						-- IP 번호
+        m010.master_port_no,				-- Port 번호
+        count(m020.SLAVE_ID) slave_cnt,		-- slave 수
+        m010.comments,						-- 비고
+        m010.coll_interval					-- 수집간격
+        from	tb_s050.tb_s050_master010  as m010
+        inner join tb_s050.tb_s050_org020 as org020
+        on	org020.org_id = m010.org_id
+        and	org020.app_tp = m010.app_tp
+        left outer join tb_s050.tb_s050_master020 as m020
+        on	m010.master_id = m020.master_id
+        where	m010.org_id = #{orgId} 			-- 로그인 Org_id
+        and		m010.app_tp = #{appTp}			-- 로그인 APP 구분
+        and		m010.master_nm like concat('%', #{masterNm}, '%')		-- 검색조건 master 명
+        group by m010.master_id,
+        m010.master_nm,
+        m010.master_ip,
+        m010.master_port_no,
+        m010.comments;
+        <!--        <include refid="COMMON.pagingBot tom"/>-->
+    </select>
+
+    <delete id="DeleteSlave" parameterType="java.util.Map">
+        DELETE FROM tb_s050.tb_s050_master020
+        WHERE MASTER_ID = #{masterId}
+    </delete>
+
+    <delete id="DeleteMaster" parameterType="java.util.Map">
+        DELETE FROM tb_s050.tb_s050_master010
+        WHERE MASTER_ID = #{masterId}
+    </delete>
+</mapper>
+

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S052020010">
+
+    <select id="GetUserListVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        SELECT 	u010.org_id, 			-- hidden의 사용할 org_id
+                u010.user_id,			-- hidden의 사용할 user_id
+                u010.admin_flag,		-- hidden의 사용할 관리자여부
+                u010.system_flag,		-- hidden의 사용할 시스템담당자 여부
+                u010.app_tp,			-- hidden의 사용할 APP 구분
+                u010.user_nm,			-- 화면의 성명
+                u010.hp_no,				-- 화면의 HP_NO
+                u010.comments,			-- 화면의 비고
+                org010.org_nm			-- 화면의 단체명
+        FROM 	tb_s050.tb_s050_user010 u010
+                inner join tb_s050.tb_s050_org020 org020
+                on	org020.org_id = u010.org_id
+                and	org020.app_tp = u010.app_tp
+                inner join tb_s050.tb_s050_org010 org010
+                on	org020.org_id = org010.org_id
+        where	u010.app_tp = #{appTp}
+        and		u010.hp_no = #{hpNo}   -- 로그인시  HP_NO
+    </select>
+
+</mapper>

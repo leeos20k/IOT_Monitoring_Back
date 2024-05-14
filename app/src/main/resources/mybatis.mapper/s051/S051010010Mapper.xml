@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S051010010">
+    <select id="selectGetAreaList" parameterType="java.util.Map" resultType="CamelHashMap">
+        -- 구역관리 조회
+        SELECT	AREA_NM,							-- 구역명
+                COUNT(MASTER_ID)	MASTER_CNT,		-- MASTER 대수
+                AREA_SEQ							-- HIDDEN 으로 사용할 AREA_SEQ
+        FROM	TB_S050.TB_S050_AREA010
+        WHERE	ORG_ID = #{orgId}
+        and		AREA_NM like concat('%', ifnull(#{areaNm}, ''), '%')
+        AND		APP_TP = '01'
+        GROUP BY  	AREA_NM,
+                    AREA_SEQ
+    </select>
+
+    <delete id="deleteArea" parameterType="java.util.Map">
+        DELETE FROM tb_s050.tb_s050_area010
+        WHERE AREA_SEQ IN
+        <foreach collection="areaSeqs" item="areaSeq" open="(" separator="," close=")">
+            #{areaSeq}
+        </foreach>
+        AND		APP_TP = '01'
+    </delete>
+</mapper>

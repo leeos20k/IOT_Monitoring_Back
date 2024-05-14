@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S050010010">
+    <select id="GetOrgListVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        select	org010.org_id,			-- hidden 사용할 org_id
+                org010.org_nm,			-- 단체명
+                org010.ceo_nm,			-- 대표자명
+                count(concat(org020.org_id, org020.app_tp))  org_tp_cnt		-- 적용앱수
+                from	tb_s050.tb_s050_org010 as org010
+                inner join tb_s050.tb_s050_org020 as org020
+                on   org010.org_id = org020.org_id
+        where   org010.org_nm like concat('%', #{orgNm}, '%')
+        and		org010.ceo_nm like concat('%', #{ceoNm}, '%')
+        group by    org010.org_id,
+                    org010.org_nm,
+                    org010.ceo_nm
+    </select>
+
+    <delete id="deleteApp" parameterType="java.util.Map">
+        delete from tb_s050.tb_s050_org020
+        where org_id IN		-- 화면에서 선택한 org_id
+        <foreach collection="list" item="orgId" open="(" separator="," close=")">
+            #{orgId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteOrg" parameterType="java.util.Map">
+        delete from tb_s050.tb_s050_org010
+        where org_id IN		-- 화면에서 선택한 org_id
+        <foreach collection="list" item="orgId" open="(" separator="," close=")">
+            #{orgId}
+        </foreach>
+    </delete>
+</mapper>

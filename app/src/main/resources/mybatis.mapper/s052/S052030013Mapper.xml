@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S052030013">
+    <select id="GetEnergyShiftVO" resultType="CamelHashMap">
+        select	'1조' as CD_V_NM,  			-- 출력 작업근
+        '07:00:01/15:00:00' as CD_V  	-- hidden 으로 사용할 시작/종료시간
+        from	dual
+        union all
+        select	'2조' as CD_V_NM,  			-- 출력 작업근
+        '15:00:01/23:00:00' as CD_V  	-- hidden 으로 사용할 시작/종료시간
+        from	dual
+        union all
+        select	'3조' as CD_V_NM,  			-- 출력 작업근
+        '23:00:01/07:00:00' as CD_V  	-- hidden 으로 사용할 시작/종료시간
+        from	dual ;
+    </select>
+
+    <select id="GetWaterRateVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        with	water_row_date as (
+        select	s020.slave_id,
+        s020.seq,
+        s020.WATER_RATE
+        from	tb_s050.tb_s050_slave010  s010
+        inner join tb_s050.tb_s050_slave020  s020
+        on	s010.slave_id = s020.slave_id
+        and	s020.data_end_status is null
+        where	s010.org_id = #{orgId}
+        and 	s010.app_tp = '04'
+        and		s010.slave_tp = 'O' )
+        select	slave_id,
+        max(case when seq = 1 then WATER_RATE end) as gypsum_A_water,
+        max(case when seq = 2 then WATER_RATE end) as gypsum_B_water,
+        max(case when seq = 3 then WATER_RATE end) as gypsum_C_water,
+        max(case when seq = 4 then WATER_RATE end) as slag_water,
+        max(case when seq = 5 then WATER_RATE end) as f_water
+        from	water_row_date
+        group by slave_id ;
+    </select>
+
+    <update id="UpdateWaterRateVO" parameterType="java.util.Map">
+        update tb_s050.tb_s050_pump010
+        set		LAST_OBJECT_ID = #{userId},		-- 로그인 user_id
+        UPDATE_TIMESTAMP = sysdate(),
+        UPDATE_PROGRAM_ID = 'S052030013',
+        WATER_RATE = #{waterRate}				-- 화면의 수분율
+        where	org_id = #{orgId}					-- 로그인 org_id
+        and		SLAVE_ID = #{slaveId}				-- 화면의 hidden slave_id
+        and		seq = #{seq}					-- 화면의 hidden seq
+        and		PUMP_EVENT_TM <![CDATA[>=]]> #{fromTime}			-- 화면의 hidden 작업시간대 from (ex :'2024-04-05 07:00:01')
+        and		PUMP_EVENT_TM <![CDATA[<=]]> #{toTime}			-- 화면의 hidden 작업시간대 to (ex :'2024-04-05 08:00:00') ;
+    </update>
+
+
+
+
+</mapper>

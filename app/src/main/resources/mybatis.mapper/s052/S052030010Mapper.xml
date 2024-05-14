@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="S052030010">
+
+    <select id="GetMasterListVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        with area_master_info as (
+            select   m020.slave_id,
+                    m020.seq,
+                    m010.master_nm,
+                    m010.master_id,
+                    null	area_nm,
+                    null	area_seq,
+                    m010.org_id,
+                    m010.app_tp
+            from   tb_s050.tb_s050_master020 m020
+            inner join tb_s050.tb_s050_master010 m010
+            on m020.master_id = m010.master_id),
+        pump_max_tm as (
+            select  max(pump_event_tm)  max_tm,
+            p010.slave_id,
+            p010.seq
+            from    tb_s050.tb_s050_pump010   p010
+            inner join tb_s050.tb_s050_slave020   s020
+            on   p010.slave_id = s020.slave_id
+            and ifnull(s020.use_flag, 'N') = 'Y'
+            and   p010.seq = s020.seq
+            where	p010.pump_event_tm >= date_sub(now(), interval 10 MINUTE)
+            group by p010.slave_id,
+            p010.seq
+        ),
+        tb_s050_pump010 as (
+            select	p010.pump_event_tm,
+                    p010.slave_id,
+                    p010.seq,
+                    p010.r_value,
+                    p010.s_value,
+                    p010.t_value,
+                    p010.l_value,
+                    p010.org_id
+            from	pump_max_tm  t
+            inner join	tb_s050.tb_s050_pump010   p010
+            on	p010.slave_id = t.slave_id
+            and	p010.seq = t.seq
+            and	p010.pump_event_tm = t.max_tm
+            where	p010.pump_event_tm >= date_sub(now(), interval 10 MINUTE)
+        )
+        select	s010.slave_nm,			-- 설비 Item명
+                s020.seq,				-- 순번
+                m020.master_nm,			-- 설비그룹 명
+                m020.area_nm,			-- 지역명
+                date_format(p010.pump_event_tm,	'%Y-%m-%d %H:%i:%s') - INTERVAL 1 HOUR	as pump_event_tm_ago,	-- event 발생일시 1 시간전
+                date_format(p010.pump_event_tm,	'%Y-%m-%d %H:%i:%s') 	as pump_event_tm, -- event 발생일시
+                truncate(p010.r_value/100, 1) r_value,			-- 전류 R 값
+                truncate(p010.s_value/100, 1) s_value,			-- 전류 S 값
+                truncate(p010.t_value/100, 1) t_value,			-- 전류 T 값
+                p010.l_value,           -- 레벨  값
+                s020.attach_file_nm,    -- 첨부파일 명
+                s020.slave_id,          -- slave_id
+                m020.master_id,         -- master_id
+                m020.area_seq,           -- Hidden area_seq
+                s020.slave_detail_nm,	-- Machine명  (화면에 출력할 slave명)
+                s020.slave_detail_id,	-- slave ID (화면에 출력할 slave ID)
+                s010.slave_tp,		-- 구분
+                (select	cd_v_nm
+                from 	tb_s050.tb_s050_cd010
+                where	cd_tp = 'SLAVE_TP'
+                and		org_id = #{orgId}			-- 로그인 사용자의 org_id
+                and		category = '000'
+                and		lang = 'KOR'
+                and		cd_v = s010.slave_tp) as slave_tp_nm,	-- 구분
+                s020.ALARM_MAX_VALUE,				-- HH 값
+                s020.ALARM_MIN_VALUE,				-- LL 값
+                s020.ALARM_TM,						-- 감지시간
+                ifnull(s020.ALARM_CONFIRM_FLAG, 'N')	as ALARM_CONFIRM_FLAG,			-- 경고알림 여부
+                s020.ALARM_MAX_L_VALUE,				-- HL 값
+                s020.ALARM_MIN_H_VALUE,				-- LH 값
+                s020.SLAVE_BASE_VALUE,				-- 기준값
+                s020.PHASE_UNB_RATE,				-- 상불평형
+                s020.ALARM_END_TM,					-- 고장시간
+                s020.ALARM_TP,						-- Hidden 고장유형코드
+                (select	cd_v_nm
+                from 	tb_s050.tb_s050_cd010
+                where	cd_tp = 'ALARM_TP'
+                and		org_id = #{orgId}			-- 로그인 사용자의 org_id
+                and		category = '000'
+                and		lang = 'KOR'
+                and		cd_v = s020.ALARM_TP) as Alarm_tp_nm	-- 고장유형명
+        from	tb_s050.tb_s050_slave010   s010
+        inner join tb_s050.tb_s050_slave020   s020
+        on  s010.slave_id = s020.slave_id
+        and	s020.use_flag = 'Y'
+        left outer join tb_s050_pump010   p010
+        on  p010.slave_id = s020.slave_id
+        and p010.seq = s020.seq
+        inner join area_master_info   m020
+        on	m020.slave_id = s010.slave_id
+        and	m020.org_id = s010.org_id
+        and	m020.app_tp = s010.app_tp
+        where	p010.org_id = #{orgId}          						-- 로그인 Org_id (1)
+        and		s010.app_tp = #{appTp}           						-- 로그인 APP 구분('02')
+        and		s010.slave_nm like concat('%', #{slaveNm}, '%')      	-- 검색조건 slave 명
+        and		m020.master_nm like concat('%', #{masterNm}, '%')   	-- 검색조건 master 명
+        and		s010.slave_tp =  ifnull(#{slaveTp}, s010.slave_tp) 		-- 검색조건 탭구분값 ( 전류 - 'V' / 온도 - 'T')
+        order by 	p010.slave_id,
+        s020.slave_detail_id
+    </select>
+
+    <select id="GetSlaveGroupName" parameterType="java.util.Map" resultType="CamelHashMap">
+        <!-- 상단 slave 명조회 VO -->
+        select   s010.slave_nm
+        from   tb_s050.tb_s050_slave010   s010
+        where   s010.slave_id = #{slaveId} ;
+    </select>
+
+    <select id="GetSlaveDataListVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        <!-- 레벨 추이도 값 조회 VO -->
+        select  truncate(p010.r_value/100, 1) as r_value,
+                truncate(p010.s_value/100, 1) as s_value,
+                truncate(p010.t_value/100, 1) as t_value,
+                p010.p010.l_value
+        from   tb_s050.tb_s050_pump010   p010
+        inner join tb_s050.tb_s050_slave020   s020
+        on   p010.slave_id = s020.slave_id
+        and   p010.seq = s020.seq
+        where   p010.slave_id = #{slaveId}				-- 선택한 slave_id
+        and     p010.seq = #{seq}					-- 선택한 slave_ 순번
+        and     p010.pump_event_tm <![CDATA[>=]]> date_sub(date_format(#{toTime}, '%Y-%m-%d %H:%i:%s'), INTERVAL 1 HOUR)	-- 검색조건 from 일시 ('2023-08-01 18:00:00')
+        and     p010.pump_event_tm <![CDATA[<=]]> date_format(#{toTime}, '%Y-%m-%d %H:%i:%s') 		-- 검색조건 to 일시 ('2023-09-01 18:00:00')
+    </select>
+
+    <select id="GetSlaveGraphYMinMaxVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        select	case when s010.slave_tp = 'V'
+                        then ceiling(greatest(max(truncate(r_value/100, 1)), max(truncate(s_value/100, 1)), max(truncate(t_value/100, 1))) * 1.1)
+                    else ceiling(max(l_value) * 1.1)
+                end max_value,		-- Y 축의 Max 값
+                case when s010.slave_tp = 'V' then floor(least(min(truncate(r_value/100, 1)), min(truncate(s_value/100, 1)), min(truncate(t_value/100, 1))) - (least(min(truncate(r_value/100, 1)), min(truncate(s_value/100, 1)), min(truncate(t_value/100, 1))) *0.1))
+                    else ceiling(min(l_value) - (min(l_value) * 1.1))
+                end min_value		-- Y 축의 Min 값
+        from	tb_s050.tb_s050_pump010   p010
+        inner join tb_s050.tb_s050_slave020   s020
+        on	p010.slave_id = s020.slave_id
+        and	p010.seq = s020.seq
+        inner join tb_s050.tb_s050_slave010   s010
+        on	p010.slave_id = s020.slave_id
+        where	p010.slave_id = #{slaveId}
+        and		p010.seq = #{seq}
+        and		s010.slave_tp = #{slaveTp}
+        and		p010.pump_event_tm <![CDATA[>=]]> date_sub(date_format(#{toTime}, '%Y-%m-%d %H:%i:%s')	, INTERVAL 1 HOUR)
+        and		p010.pump_event_tm <![CDATA[<=]]> date_format(#{toTime}, '%Y-%m-%d %H:%i:%s')
+    </select>
+
+    <select id="GetImageVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        SELECT  ATTACH_FILE
+        FROM    tb_s050.tb_s050_slave020
+        WHERE   slave_id = #{slaveId}
+        AND     seq = #{seq}
+    </select>
+
+    <update id="updateAlarm020" parameterType="java.util.Map">
+        UPDATE 	tb_s050.tb_s050_slave020
+        SET		LAST_OBJECT_ID = #{loginId},		-- 로그인한 사용자 ID
+        UPDATE_TIMESTAMP = sysdate(),
+        UPDATE_PROGRAM_ID = 'S052030010',
+        ALARM_CONFIRM_FLAG = 'N'
+        WHERE	SLAVE_ID =  #{slaveId} 				-- 선택한 slave ID
+        AND 	SEQ = #{seq}					-- 선택한 seq
+    </update>
+
+    <update id="updateAlarm030" parameterType="java.util.Map">
+        UPDATE  tb_s050.tb_s050_slave030 AS T_TARGET,
+            (
+                SELECT  ref.slave_id,
+                        ref.seq,
+                        max(ALARM_END_TM) as max_tm
+                FROM    tb_s050.tb_s050_slave030 AS ref
+                WHERE   ref.slave_id = #{slaveId}
+                AND     ref.seq = #{seq}
+                AND		ALARM_END_TM = #{alarmEndTm}
+            ) AS T_BASE
+        SET     ALARM_CONFIRM_FLAG = 'N',
+                ALARM_CONFIRM_TM = sysdate()
+        WHERE   T_TARGET.slave_id = T_BASE.slave_id
+        and		T_TARGET.seq = T_BASE.seq
+        and		T_TARGET.ALARM_END_TM =  T_BASE.max_tm
+    </update>
+
+
+
+    <select id="manyDataTest" parameterType="java.util.Map" resultType="CamelHashMap">
+        SELECT l_value,
+        s_value,
+        slave_id,
+        t_value,
+        r_value,
+        pump_event_tm,
+        seq,
+        update_Timestamp,
+        org_Id,
+        create_Timestamp
+        FROM tb_s050.tb_s050_pump010
+        where PUMP_EVENT_TM <![CDATA[>=]]> '2024-02-19 18:00:24'
+        and PUMP_EVENT_TM <![CDATA[<=]]> '2024-02-21 15:00:00' ;
+    </select>
+
+</mapper>

@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="EnergyMonitoring">
+
+    <select id="GetEnergyTenInfoVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        with prod_vol_maxtm as (
+        select 	max(p010.PUMP_EVENT_TM) PUMP_EVENT_TM,
+        p010.SLAVE_ID ,
+        p010.SEQ ,
+        p010.ORG_ID,
+        s010.slave_tp,
+        ds.to_min
+        from	tb_s050.tb_s050_pump010   p010,
+        tb_s050.tb_s050_slave010  s010,
+        tb_s050.work_day_shift    ds
+        where	p010.pump_event_tm <![CDATA[>=]]> date_sub( concat(date_format(sysdate(), '%Y-%m-%d %H'), ':', ds.to_min, ':00'), interval 10 minute)
+        and		p010.pump_event_tm <![CDATA[<]]> concat(date_format(sysdate(), '%Y-%m-%d %H'), ':', ds.to_min, ':00')
+        and		p010.slave_id = s010.slave_id
+        and		s010.app_tp = '04'
+        and		s010.org_id = #{orgId}			-- 로그인 사용자의 org_id
+        and		s010.slave_tp in ('O', 'V', 'N')
+        and		p010.pump_event_tm <![CDATA[>=]]> date_sub(now(), interval 30 MINUTE)
+        group by p010.SLAVE_ID ,
+        p010.SEQ ,
+        p010.ORG_ID,
+        s010.slave_tp ),
+        prod_vol_value	as (
+        select	case when mt.to_min COLLATE utf8mb4_unicode_ci = '00' then concat(date_format(date_add(p010.PUMP_EVENT_TM, interval 1 hour), '%Y-%m-%d %H'), ':', mt.to_min, ':00')
+        else concat(date_format(p010.PUMP_EVENT_TM, '%Y-%m-%d %H'), ':', mt.to_min, ':00')
+        end as PUMP_EVENT_TM,
+        p010.slave_id,
+        p010.seq,
+        p010.ORG_ID,
+        p010.r_value,
+        p010.s_value,
+        case when mt.slave_tp = 'O' then p010.calu_value *(1 - (p010.water_rate/100))
+        else p010.calu_value
+        end as t_value,
+        p010.l_value
+        from	tb_s050.tb_s050_pump010   p010,
+        prod_vol_maxtm	mt
+        where	p010.slave_id =  mt.slave_id
+        and		p010.seq =  mt.seq
+        and		p010.org_id = mt.org_id
+        and		p010.PUMP_EVENT_TM =  mt.PUMP_EVENT_TM )
+        select	pvv.PUMP_EVENT_TM,
+        pvv.slave_id,
+        pvv.seq,
+        pvv.ORG_ID,
+        pvv.r_value,
+        pvv.s_value,
+        pvv.t_value,
+        pvv.l_value
+        from	prod_vol_value  pvv   ;
+    </select>
+
+    <select id="GetEnergyDayInfoVO" parameterType="java.util.Map" resultType="CamelHashMap">
+        with prod_vol_maxtm as (
+            select 	max(p010.PUMP_EVENT_TM) PUMP_EVENT_TM,
+                    p010.SLAVE_ID ,
+                    p010.SEQ ,
+                    p010.ORG_ID,
+                    s010.slave_tp
+            from	tb_s050.tb_s050_pump010   p010,
+                    tb_s050.tb_s050_slave010  s010,
+                    tb_s050.work_day_shift    ds
+            where	s010.org_id = #{orgId}			-- 로그인 사용자의 org_id
+            and		s010.app_tp = '04'
+            and		p010.slave_id = s010.slave_id
+            and		p010.PUMP_EVENT_TM <![CDATA[>=]]> #{fromTime}
+            and		p010.PUMP_EVENT_TM <![CDATA[<=]]> #{toTime}
+            and		s010.slave_tp in ('O', 'V', 'N')
+            group by case when cast(date_format( p010.PUMP_EVENT_TM, '%i') as integer) <![CDATA[>=]]> 0 and cast(date_format( p010.PUMP_EVENT_TM, '%i') as integer) <![CDATA[<=]]> 9 then concat(date_format(p010.PUMP_EVENT_TM, '%Y-%m-%d %H:'), '10:00')
+                    when cast(date_format( p010.PUMP_EVENT_TM, '%i') as integer) <![CDATA[>=]]> 10 and cast(date_format( p010.PUMP_EVENT_TM, '%i') as integer) <![CDATA[<=]]> 19 then concat(date_format(p010.PUMP_EVENT_TM, '%Y-%m-%d %H:'), '20:00')
+                    when cast(date_format( p010.PUMP_EVENT_TM, '%i') as integer) <![CDATA[>=]]> 20 and cast(date_format( p010.PUMP_EVENT_TM, '%i') as integer) <![CDATA[<=]]> 29 then concat(date_format(p010.PUMP_EVENT_TM, '%Y-%m-%d %H:'), '30:00')
+                    when cast(date_format( p010.PUMP_EVENT_TM, '%i') as integer) <![CDATA[>=]]> 30 and cast(date_format( p010.PUMP_EVENT_TM, '%i') as integer) <![CDATA[<=]]> 39 then concat(date_format(p010.PUMP_EVENT_TM, '%Y-%m-%d %H:'), '40:00')
+                    when cast(date_format( p010.PUMP_EVENT_TM, '%i') as integer) <![CDATA[>=]]> 40 and cast(date_format( p010.PUMP_EVENT_TM, '%i') as integer) <![CDATA[<=]]> 49 then concat(date_format(p010.PUMP_EVENT_TM, '%Y-%m-%d %H:'), '50:00')
+                    else concat(date_format(p010.PUMP_EVENT_TM, '%Y-%m-%d %H:'), '00:00')
+                    end,
+                    p010.SLAVE_ID ,
+                    p010.SEQ ,
+                    p010.ORG_ID,
+                    s010.slave_tp )
+        select	date_format(case when cast(date_format( p010.PUMP_EVENT_TM, '%i') as integer) <![CDATA[>=]]> 0 and cast(date_format( p010.PUMP_EVENT_TM, '%i') as integer) <![CDATA[<=]]> 9 then concat(date_format(p010.PUMP_EVENT_TM, '%Y-%m-%d %H:'), '10:00')
+                when cast(date_format( p010.PUMP_EVENT_TM, '%i') as integer) <![CDATA[>=]]> 10 and cast(date_format( p010.PUMP_EVENT_TM, '%i') as integer) <![CDATA[<=]]> 19 then concat(date_format(p010.PUMP_EVENT_TM, '%Y-%m-%d %H:'), '20:00')
+                when cast(date_format( p010.PUMP_EVENT_TM, '%i') as integer) <![CDATA[>=]]> 20 and cast(date_format( p010.PUMP_EVENT_TM, '%i') as integer) <![CDATA[<=]]> 29 then concat(date_format(p010.PUMP_EVENT_TM, '%Y-%m-%d %H:'), '30:00')
+                when cast(date_format( p010.PUMP_EVENT_TM, '%i') as integer) <![CDATA[>=]]> 30 and cast(date_format( p010.PUMP_EVENT_TM, '%i') as integer) <![CDATA[<=]]> 39 then concat(date_format(p010.PUMP_EVENT_TM, '%Y-%m-%d %H:'), '40:00')
+                when cast(date_format( p010.PUMP_EVENT_TM, '%i') as integer) <![CDATA[>=]]> 40 and cast(date_format( p010.PUMP_EVENT_TM, '%i') as integer) <![CDATA[<=]]> 49 then concat(date_format(p010.PUMP_EVENT_TM, '%Y-%m-%d %H:'), '50:00')
+                else date_add(concat(date_format(p010.PUMP_EVENT_TM, '%Y-%m-%d %H:'), '00:00')  , interval 1 hour)
+                end, '%Y-%m-%d %T') PUMP_EVENT_TM ,
+                p010.slave_id,
+                p010.seq,
+                p010.ORG_ID,
+                p010.r_value,
+                p010.s_value,
+                case when slave_tp = 'O' then p010.calu_value *(1 - (p010.water_rate/100))
+                else p010.calu_value
+                end as t_value,
+                p010.l_value
+        from	tb_s050.tb_s050_pump010   p010,
+                prod_vol_maxtm	mt
+        where	p010.slave_id =  mt.slave_id
+        and		p010.seq =  mt.seq
+        and		p010.PUMP_EVENT_TM =  mt.PUMP_EVENT_TM ;
+    </select>
+
+    <insert id="insertAggre011VO" parameterType="java.util.Map">
+        INSERT INTO tb_s050.tb_s050_aggre011
+        (EVENT_AGGRE_TEN_MI,
+        SLAVE_ID,
+        SEQ,
+        CREATE_OBJECT_ID,
+        CREATE_TIMESTAMP,
+        CREATE_PROGRAM_ID,
+        LAST_OBJECT_ID,
+        UPDATE_TIMESTAMP,
+        UPDATE_PROGRAM_ID,
+        ORG_ID,
+        R_VALUE,
+        S_VALUE,
+        T_VALUE,
+        L_VALUE)
+        VALUES
+        (#{pumpEventTm},			-- GetEnergeTenInfoVO.EVENT_AGGRE_TEN_MI, GetEnergeDayInfoVO.EVENT_AGGRE_TEN_MI
+        #{slaveId},	     		    -- GetEnergeTenInfoVO.SLAVE_ID,           GetEnergeDayInfoVO.SLAVE_ID
+        #{seq}, 		        	-- GetEnergeTenInfoVO.SEQ,                GetEnergeDayInfoVO.SEQ
+        'SYSTEM',
+        sysdate(),
+        'SYSTEM',
+        'SYSTEM',
+        sysdate(),
+        'SYSTEM',
+        #{orgId},			        -- GetEnergeTenInfoVO.ORG_ID,   GetEnergeDayInfoVO.ORG_ID,
+        #{rValue},			        -- GetEnergeTenInfoVO.R_VALUE,  GetEnergeDayInfoVO.R_VALUE,
+        #{sValue},			        -- GetEnergeTenInfoVO.S_VALUE,  GetEnergeDayInfoVO.S_VALUE,
+        #{tValue}, 		            -- GetEnergeTenInfoVO.T_VALUE,  GetEnergeDayInfoVO.T_VALUE,
+        #{lValue})			        -- GetEnergeTenInfoVO.L_VALUE   GetEnergeDayInfoVO.L_VALUE
+    </insert>
+
+    <delete id="DeleteAggre011VO" parameterType="java.util.Map">
+        delete from tb_s050.tb_s050_aggre011
+        where	event_aggre_ten_mi <![CDATA[>=]]> #{fromTime}
+        and		event_aggre_ten_mi <![CDATA[<=]]> #{toTime};
+    </delete>
+
+</mapper>
